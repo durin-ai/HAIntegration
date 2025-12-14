@@ -1,0 +1,105 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Assistant Cloud Setup",
+        "description": "Connect your Home Assistant to the cloud backend for device synchronization and remote control.",
+        "data": {
+          "api_key": "API Key",
+          "api_url": "Cloud API URL",
+          "name": "Integration Name"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reauthorize Home Assistant Cloud",
+        "description": "Your API key needs to be updated. Please provide a valid API key.",
+        "data": {
+          "api_key": "API Key"
+        }
+      }
+    },
+    "error": {
+      "invalid_api_key": "The provided API key is invalid. Please check your key and try again.",
+      "connection_failed": "Unable to connect to the cloud API. Please check your internet connection and API URL.",
+      "unknown": "An unexpected error occurred. Please try again later."
+    },
+    "abort": {
+      "already_configured": "This installation is already configured.",
+      "reauth_successful": "Re-authentication was successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Cloud Integration Options",
+        "description": "Configure advanced options for the cloud integration.",
+        "data": {
+          "api_url": "Cloud API URL"
+        }
+      }
+    }
+  },
+  "services": {
+    "sync_devices": {
+      "name": "Sync Devices",
+      "description": "Manually sync all devices and entities with the cloud backend."
+    },
+    "send_command": {
+      "name": "Send Command",
+      "description": "Send a command to a specific entity through the cloud.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "The entity to send the command to."
+        },
+        "action": {
+          "name": "Action",
+          "description": "The action to perform (e.g., turn_on, turn_off, set_brightness)."
+        },
+        "params": {
+          "name": "Parameters",
+          "description": "Additional parameters for the command as a JSON object."
+        }
+      }
+    }
+  },
+  "issues": {
+    "cloud_connection_failed": {
+      "title": "Cloud Connection Failed",
+      "description": "The connection to the Home Assistant Cloud backend has failed. Please check your internet connection and API configuration."
+    },
+    "sync_failed": {
+      "title": "Device Sync Failed", 
+      "description": "Unable to sync devices with the cloud backend. The integration will retry automatically."
+    },
+    "api_key_expired": {
+      "title": "API Key Expired",
+      "description": "Your API key has expired or been revoked. Please update your configuration with a valid API key."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "cloud_status": {
+        "name": "Cloud Connection Status",
+        "state": {
+          "connected": "Connected",
+          "disconnected": "Disconnected", 
+          "connecting": "Connecting",
+          "error": "Error"
+        }
+      },
+      "last_sync": {
+        "name": "Last Sync Time",
+        "state": {
+          "never": "Never"
+        }
+      },
+      "synced_devices": {
+        "name": "Synced Devices Count"
+      },
+      "synced_entities": {
+        "name": "Synced Entities Count"
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "domain": "your_cloud",
+  "name": "Home Assistant Cloud",
+  "codeowners": ["@your-username"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/your-username/homeassistant-cloud-integration",
+  "integration_type": "service",
+  "iot_class": "cloud_push",
+  "issue_tracker": "https://github.com/your-username/homeassistant-cloud-integration/issues",
+  "loggers": ["your_cloud"],
+  "quality_scale": "platinum",
+  "requirements": [
+    "aiohttp>=3.8.0",
+    "async_timeout>=4.0.0"
+  ],
+  "version": "1.0.0",
+  "homeassistant": "2024.1.0"
+}

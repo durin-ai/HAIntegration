@@ -1,0 +1,27 @@
+# Home Assistant Cloud Integration Requirements
+# These packages are required for the custom component to function properly
+
+# HTTP client library for API communications
+aiohttp>=3.8.0
+
+# Async timeout handling for HTTP requests
+async_timeout>=4.0.0
+
+# JSON schema validation (if needed for advanced configurations)
+jsonschema>=4.0.0
+
+# Additional useful packages for development and testing
+# (These are optional but recommended for development)
+
+# Testing framework
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+
+# Code formatting and linting
+black>=22.0.0
+flake8>=5.0.0
+mypy>=1.0.0
+
+# Home Assistant testing utilities
+homeassistant>=2024.1.0

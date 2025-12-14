@@ -1,0 +1,68 @@
+{
+  "name": "homeassistant-cloud-backend",
+  "version": "1.0.0",
+  "description": "AWS Cloud Backend for Home Assistant Custom Integration",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "serverless deploy",
+    "deploy:dev": "serverless deploy --stage dev",
+    "deploy:prod": "serverless deploy --stage prod",
+    "remove": "serverless remove",
+    "remove:dev": "serverless remove --stage dev",
+    "remove:prod": "serverless remove --stage prod",
+    "offline": "serverless offline",
+    "logs:register": "serverless logs -f register --tail",
+    "logs:sync": "serverless logs -f sync --tail",
+    "logs:webhook": "serverless logs -f webhook --tail",
+    "logs:events": "serverless logs -f eventProcessor --tail",
+    "invoke:register": "serverless invoke -f register",
+    "invoke:sync": "serverless invoke -f sync",
+    "invoke:webhook": "serverless invoke -f webhook",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "jest --testPathPattern=test/unit",
+    "test:integration": "jest --testPathPattern=test/integration",
+    "lint": "eslint lambda/ --ext .js",
+    "lint:fix": "eslint lambda/ --ext .js --fix",
+    "validate": "serverless print",
+    "info": "serverless info"
+  },
+  "keywords": [
+    "home-assistant",
+    "aws",
+    "serverless",
+    "lambda",
+    "dynamodb",
+    "eventbridge",
+    "iot"
+  ],
+  "author": "Your Name <your.email@example.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.450.0",
+    "@aws-sdk/lib-dynamodb": "^3.450.0",
+    "@aws-sdk/client-eventbridge": "^3.450.0",
+    "@aws-sdk/client-sns": "^3.450.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "serverless": "^3.38.0",
+    "serverless-offline": "^13.3.0",
+    "eslint": "^8.54.0",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.8",
+    "aws-sdk-client-mock": "^3.0.0",
+    "supertest": "^6.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/homeassistant-cloud-backend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/homeassistant-cloud-backend/issues"
+  },
+  "homepage": "https://github.com/your-username/homeassistant-cloud-backend#readme"
+}

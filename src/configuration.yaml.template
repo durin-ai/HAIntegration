@@ -1,0 +1,96 @@
+# Home Assistant Configuration Template for Cloud Integration
+
+# This file shows how to manually configure the Home Assistant Cloud integration
+# Note: It's recommended to use the UI configuration flow instead of manual YAML configuration
+
+# Cloud Integration Configuration
+your_cloud:
+  # Your cloud service API key (required)
+  api_key: "your-api-key-here"
+  
+  # Cloud backend API URL (optional, defaults to the standard endpoint)
+  api_url: "https://your-api-gateway-url.execute-api.us-east-1.amazonaws.com/dev"
+  
+  # Installation name (optional, for identification purposes)
+  name: "My Home Assistant Cloud"
+  
+  # Advanced options
+  sync_interval: 300  # Sync devices every 5 minutes (seconds)
+  timeout: 30         # API request timeout (seconds)
+  
+  # Device filtering (optional)
+  include_domains:    # Only sync these device types
+    - light
+    - switch
+    - sensor
+    - binary_sensor
+    - climate
+    - fan
+    - cover
+    
+  exclude_entities:   # Don't sync these specific entities
+    - sensor.uptime
+    - sensor.load_1m
+    
+  # Security settings
+  enable_notifications: true  # Enable security alerts and notifications
+
+# Logger configuration for debugging
+logger:
+  default: info
+  logs:
+    custom_components.your_cloud: debug
+
+# Automation examples that work with the cloud integration
+automation:
+  # Example 1: Manual sync trigger
+  - alias: "Manual Cloud Sync"
+    trigger:
+      - platform: state
+        entity_id: input_button.sync_cloud
+        
+    action:
+      - service: your_cloud.sync_devices
+
+  # Example 2: Security alert
+  - alias: "Cloud Security Alert" 
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.front_door
+        to: 'on'
+        
+    action:
+      - service: notify.persistent_notification
+        data:
+          message: "Front door opened - Cloud integration active"
+          title: "Security Alert"
+
+# Input helpers for manual control
+input_button:
+  sync_cloud:
+    name: "Sync Devices with Cloud"
+    icon: mdi:cloud-sync
+
+# Template sensors for cloud status monitoring  
+template:
+  - sensor:
+      - name: "Cloud Connection Status"
+        unique_id: cloud_connection_status
+        state: >
+          {% set last_sync = states('sensor.your_cloud_last_sync') %}
+          {% if last_sync == 'unknown' or last_sync == 'unavailable' %}
+            disconnected
+          {% elif (as_timestamp(now()) - as_timestamp(last_sync)) > 600 %}
+            stale
+          {% else %}
+            connected
+          {% endif %}
+        icon: >
+          {% set status = states('sensor.cloud_connection_status') %}
+          {% if status == 'connected' %}
+            mdi:cloud-check
+          {% elif status == 'stale' %}
+            mdi:cloud-alert
+          {% else %}
+            mdi:cloud-off
+          {% endif %}
