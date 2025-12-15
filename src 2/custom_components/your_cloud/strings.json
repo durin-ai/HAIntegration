@@ -3,24 +3,29 @@
     "step": {
       "user": {
         "title": "Home Assistant Cloud Setup",
-        "description": "Connect your Home Assistant to the cloud backend for device synchronization and remote control.",
+        "description": "Connect your Home Assistant to Durin cloud backend via MQTT for device synchronization and remote control.",
         "data": {
-          "api_key": "API Key",
-          "api_url": "Cloud API URL",
+          "mqtt_broker": "MQTT Broker",
+          "mqtt_port": "MQTT Port",
+          "mqtt_username": "MQTT Username",
+          "mqtt_password": "MQTT Password",
+          "use_tls": "Use TLS/SSL",
           "name": "Integration Name"
         }
       },
       "reauth_confirm": {
         "title": "Reauthorize Home Assistant Cloud",
-        "description": "Your API key needs to be updated. Please provide a valid API key.",
+        "description": "Your MQTT credentials need to be updated. Please provide valid credentials.",
         "data": {
-          "api_key": "API Key"
+          "mqtt_username": "MQTT Username",
+          "mqtt_password": "MQTT Password"
         }
       }
     },
     "error": {
-      "invalid_api_key": "The provided API key is invalid. Please check your key and try again.",
-      "connection_failed": "Unable to connect to the cloud API. Please check your internet connection and API URL.",
+      "mqtt_auth_failed": "MQTT authentication failed. Please check your credentials.",
+      "mqtt_connection_failed": "Unable to connect to the MQTT broker. Please check your network connection and broker settings.",
+      "broker_unreachable": "MQTT broker is unreachable. Please verify the broker address and port.",
       "unknown": "An unexpected error occurred. Please try again later."
     },
     "abort": {
@@ -32,9 +37,11 @@
     "step": {
       "init": {
         "title": "Cloud Integration Options",
-        "description": "Configure advanced options for the cloud integration.",
+        "description": "Configure advanced options for the MQTT cloud integration.",
         "data": {
-          "api_url": "Cloud API URL"
+          "mqtt_broker": "MQTT Broker",
+          "mqtt_port": "MQTT Port",
+          "use_tls": "Use TLS/SSL"
         }
       }
     }
@@ -66,15 +73,15 @@
   "issues": {
     "cloud_connection_failed": {
       "title": "Cloud Connection Failed",
-      "description": "The connection to the Home Assistant Cloud backend has failed. Please check your internet connection and API configuration."
+      "description": "The connection to the MQTT broker has failed. Please check your network connection and MQTT configuration."
     },
     "sync_failed": {
       "title": "Device Sync Failed", 
-      "description": "Unable to sync devices with the cloud backend. The integration will retry automatically."
+      "description": "Unable to sync devices with the cloud backend via MQTT. The integration will retry automatically."
     },
-    "api_key_expired": {
-      "title": "API Key Expired",
-      "description": "Your API key has expired or been revoked. Please update your configuration with a valid API key."
+    "mqtt_auth_failed": {
+      "title": "MQTT Authentication Failed",
+      "description": "Your MQTT credentials are invalid or have been revoked. Please update your configuration with valid credentials."
     }
   },
   "entity": {

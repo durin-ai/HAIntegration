@@ -1,13 +1,13 @@
-# Home Assistant Cloud Backend
+# Durin MQTT Backend
 
-AWS serverless backend infrastructure for the Home Assistant Cloud Integration. This backend provides device synchronization, webhook endpoints, and event processing using AWS Lambda, DynamoDB, and EventBridge.
+AWS serverless backend infrastructure for the Durin Home Assistant Integration using AWS IoT Core and MQTT protocol. This backend provides device synchronization, real-time messaging, and event processing through MQTT pub/sub architecture.
 
 ## Architecture
 
 ```
 ┌─────────────────┐    ┌──────────────┐    ┌─────────────────┐
-│ Home Assistant  │───▶│ API Gateway  │───▶│ Lambda Functions│
-│   Integration   │    │              │    │                 │
+│ Home Assistant  │───▶│ AWS IoT Core │───▶│ Lambda Functions│
+│   Integration   │MQTT│  (Broker)    │    │                 │
 └─────────────────┘    └──────────────┘    └─────────────────┘
                               │                       │
                               ▼                       ▼
@@ -31,14 +31,14 @@ AWS serverless backend infrastructure for the Home Assistant Cloud Integration. 
 
 ## Features
 
-- **🔐 Secure Registration**: API key validation and secure installation registration
-- **📦 Device Sync**: Bulk device and entity synchronization from Home Assistant
-- **🔄 Real-time Webhooks**: Bidirectional communication for commands and status updates
+- **🔐 Secure MQTT**: TLS-encrypted MQTT connections via AWS IoT Core
+- **📦 Device Synchronization**: Real-time device and entity synchronization
+- **🔄 Bi-directional Messaging**: Pub/sub pattern for commands and status updates
 - **⚡ Event Processing**: Automated triggers and monitoring through EventBridge
 - **📊 Monitoring**: CloudWatch integration for logs and metrics
-- **🛡️ Security**: IAM-based permissions and encrypted data storage
+- **🛡️ Security**: AWS IoT authentication and encrypted data storage
 - **💰 Cost-Effective**: Serverless architecture with pay-per-use pricing
-- **🔧 Scalable**: Auto-scaling Lambda functions and DynamoDB
+- **🔧 Scalable**: Auto-scaling Lambda and managed IoT Core broker
 
 ## Prerequisites
 
@@ -56,7 +56,7 @@ Your AWS user/role needs these permissions:
 - Lambda (full access)
 - DynamoDB (full access)
 - EventBridge (full access)
-- API Gateway (full access)
+- **AWS IoT Core** (full access)
 - IAM (role creation)
 - CloudWatch (logs)
 - SNS (optional, for notifications)
@@ -110,6 +110,11 @@ npm install
 ./deploy.sh staging us-west-2
 ```
 
+The deployment script will:
+1. Deploy the serverless infrastructure
+2. Retrieve the AWS IoT Core endpoint URL
+3. Save the endpoint to a configuration file for use in Home Assistant
+
 ### Using Serverless Commands Directly
 
 ```bash
@@ -128,24 +133,41 @@ npm run info
 ### Development Commands
 
 ```bash
-# Run locally (serverless offline)
-npm run offline
-
 # View function logs
-npm run logs:register
-npm run logs:sync
-npm run logs:webhook
+npm run logs:mqtt
 npm run logs:events
 
-# Invoke functions manually
-npm run invoke:register
-npm run invoke:sync
-npm run invoke:webhook
+# Invoke functions manually  
+npm run invoke:mqtt
 
 # Code quality
 npm run lint
 npm run test
 ```
+
+## MQTT Topics
+
+The backend uses the following MQTT topic structure:
+
+| Topic Pattern | Direction | Purpose |
+|--------------|-----------|---------|
+| `durin/ha/{installation_id}/register` | Device → Cloud | Register new installation |
+| `durin/ha/{installation_id}/sync` | Device → Cloud | Synchronize devices/entities |
+| `durin/ha/{installation_id}/status` | Device → Cloud | Publish entity state changes |
+| `durin/ha/{installation_id}/events` | Device → Cloud | Send Home Assistant events |
+| `durin/ha/{installation_id}/commands` | Cloud → Device | Send commands to Home Assistant |
+| `durin/ha/{installation_id}/ack` | Cloud → Device | Acknowledgment messages |
+
+### Topic Wildcards
+
+The IoT Rule uses the following pattern to route all messages:
+```
+durin/ha/+/#
+```
+
+Where:
+- `+` matches a single level (installation_id)
+- `#` matches remaining levels (message type)
 
 ## Configuration
 
@@ -155,9 +177,9 @@ The following environment variables are automatically configured:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `TABLE_NAME` | DynamoDB table name | `homeassistant-cloud-backend-dev-data` |
-| `EVENT_BUS_NAME` | EventBridge bus name | `homeassistant-cloud-backend-dev-events` |
-| `API_GATEWAY_URL` | API Gateway base URL | `https://abc123.execute-api.us-east-1.amazonaws.com/dev` |
+| `TABLE_NAME` | DynamoDB table name | `durin-mqtt-backend-dev-data` |
+| `EVENT_BUS_NAME` | EventBridge bus name | `durin-mqtt-backend-dev-events` |
+| `IOT_ENDPOINT` | AWS IoT Core endpoint | `a1b2c3d4e5f6g7.iot.us-east-1.amazonaws.com` |
 | `NOTIFICATION_TOPIC_ARN` | SNS topic ARN (optional) | `arn:aws:sns:us-east-1:123456789:notifications` |
 
 ### Serverless Configuration
@@ -172,46 +194,47 @@ provider:
 
 # Function timeout and memory
 functions:
-  register:
+  mqttProcessor:
     timeout: 30
     memorySize: 256
 ```
 
-## API Endpoints
+## Message Processing
 
-After deployment, you'll have these endpoints:
+After deployment, messages are processed via MQTT topics:
 
-### 1. Registration Endpoint
+### 1. Registration Message
 
-Register a new Home Assistant installation:
+Publish to register a new Home Assistant installation:
 
-```http
-POST /ha/register
-Content-Type: application/json
+**Topic:** `durin/ha/{installation_id}/register`
 
-{
-  "api_key": "your-api-key-here"
-}
-```
-
-**Response:**
+**Payload:**
 ```json
 {
   "installation_id": "uuid-here",
-  "webhook_id": "uuid-here", 
-  "webhook_url": "https://api.example.com/webhook/uuid-here"
+  "ha_version": "2024.1.0",
+  "installation_name": "My Home"
 }
 ```
 
-### 2. Sync Endpoint
+**Acknowledgment (Cloud → Device):**
+```json
+{
+  "status": "registered",
+  "installation_id": "uuid-here",
+  "registered_at": "2024-01-01T00:00:00Z"
+}
+```
 
-Sync devices and entities from Home Assistant:
+### 2. Sync Message
 
-```http
-POST /ha/sync
-Authorization: Bearer your-api-key
-Content-Type: application/json
+Publish to synchronize devices and entities:
 
+**Topic:** `durin/ha/{installation_id}/sync`
+
+**Payload:**
+```json
 {
   "installation_id": "uuid-here",
   "devices": [
@@ -234,17 +257,33 @@ Content-Type: application/json
 }
 ```
 
-### 3. Webhook Endpoint
+### 3. Status Updates
 
-Bidirectional communication endpoint:
+Publish entity state changes:
 
-```http
-POST /webhook/{webhook_id}
-Content-Type: application/json
+**Topic:** `durin/ha/{installation_id}/status`
 
+**Payload:**
+```json
 {
-  "type": "command",
-  "action": "turn_on", 
+  "entity_id": "light.living_room",
+  "state": "on",
+  "attributes": {"brightness": 128},
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+### 4. Commands (Cloud → Device)
+
+Subscribe to receive commands:
+
+**Topic:** `durin/ha/{installation_id}/commands`
+
+**Payload:**
+```json
+{
+  "command_id": "cmd-uuid",
+  "action": "turn_on",
   "entity_id": "light.living_room",
   "params": {"brightness": 128}
 }
@@ -278,10 +317,10 @@ Global Secondary Index for cross-installation queries:
 
 The system generates these event types:
 
-1. **InstallationRegistered**: New installation created
-2. **DevicesSynced**: Devices synchronized from HA
-3. **CommandSent**: Command sent to device
-4. **StatusUpdate**: Status update from HA
+1. **InstallationRegistered**: New installation created via MQTT
+2. **DevicesSynced**: Devices synchronized from HA via MQTT
+3. **CommandSent**: Command sent to device via MQTT topic
+4. **StatusUpdate**: Status update from HA via MQTT
 
 ### Example Event Processing
 
@@ -298,56 +337,71 @@ if (entity.entity_id.includes('alarm') && entity.state === 'triggered') {
 ### CloudWatch Logs
 
 Each Lambda function has dedicated log groups:
-- `/aws/lambda/homeassistant-cloud-backend-{stage}-register`
-- `/aws/lambda/homeassistant-cloud-backend-{stage}-sync`
-- `/aws/lambda/homeassistant-cloud-backend-{stage}-webhook`
-- `/aws/lambda/homeassistant-cloud-backend-{stage}-eventProcessor`
+- `/aws/lambda/durin-mqtt-backend-{stage}-mqttProcessor`
+- `/aws/lambda/durin-mqtt-backend-{stage}-eventProcessor`
+- `/aws/lambda/durin-mqtt-backend-{stage}-iotEndpointProvider`
 
 ### Viewing Logs
 
 ```bash
 # Real-time logs
-npm run logs:register -- --tail
-npm run logs:sync -- --tail
+npm run logs:mqtt -- --tail
 
 # Historical logs
-aws logs describe-log-groups --log-group-name-prefix /aws/lambda/homeassistant
+aws logs describe-log-groups --log-group-name-prefix /aws/lambda/durin-mqtt
 ```
+
+### IoT Core Monitoring
+
+Monitor MQTT-specific metrics:
+- Message publish/receive count
+- Connection attempts and failures
+- Rule execution count and errors
+- Message size and throttling
 
 ### Metrics and Alarms
 
 Key metrics to monitor:
 - Lambda invocation count and errors
 - DynamoDB read/write capacity
-- API Gateway 4xx/5xx errors
+- IoT Core message count and rule failures
 - EventBridge rule invocations
 
 ## Security
 
-### API Key Management
+### MQTT Authentication
 
-- API keys are hashed (SHA-256) before storage
-- Keys are never logged or exposed in responses
-- Implement key rotation in your authentication system
+- X.509 certificate-based authentication
+- TLS 1.2+ encryption for all MQTT connections
+- Certificate policies and thing groups for access control
+- Automatic certificate rotation support
+
+### IoT Core Policies
+
+The deployment creates IoT policies with minimal permissions:
+- Publish/subscribe permissions scoped to installation-specific topics
+- Connect permissions restricted to specific client IDs
+- No wildcard permissions by default
 
 ### Network Security
 
-- All endpoints use HTTPS
-- CORS is configured for web access
-- Rate limiting via API Gateway (if configured)
+- All MQTT connections use TLS encryption (port 8883)
+- MQTT over WebSockets available for browser clients
+- VPC endpoints support for private connectivity
 
 ### IAM Permissions
 
 The deployment creates minimal IAM roles:
 - Lambda execution roles with specific resource access
-- No cross-account access by default
+- IoT Core rule permissions for Lambda invocation
 - CloudWatch logging permissions only
 
 ### Data Encryption
 
-- Data encrypted in transit (HTTPS/TLS)
+- Data encrypted in transit (TLS 1.2+)
 - DynamoDB encryption at rest (AWS managed keys)
 - CloudWatch logs retention policies applied
+- IoT message encryption in transit
 
 ## Cost Optimization
 
@@ -357,17 +411,18 @@ For a typical home with 50 devices syncing every 5 minutes:
 
 - **Lambda**: ~$0.50/month
 - **DynamoDB**: ~$1.00/month  
-- **API Gateway**: ~$0.10/month
+- **IoT Core**: ~$0.50/month (messaging)
 - **EventBridge**: ~$0.05/month
 
-**Total: ~$1.65/month**
+**Total: ~$2.05/month**
 
 ### Cost Reduction Tips
 
-1. **Increase sync interval**: Reduce API calls
+1. **Increase sync interval**: Reduce MQTT message frequency
 2. **Filter entities**: Don't sync unnecessary sensors
 3. **Use reserved capacity**: For high-volume DynamoDB usage
 4. **Optimize Lambda memory**: Right-size memory allocation
+5. **Batch messages**: Combine multiple updates when possible
 
 ## Troubleshooting
 
@@ -377,7 +432,7 @@ For a typical home with 50 devices syncing every 5 minutes:
 
 ```bash
 # Check CloudFormation events
-aws cloudformation describe-stack-events --stack-name homeassistant-cloud-backend-dev
+aws cloudformation describe-stack-events --stack-name durin-mqtt-backend-dev
 
 # Validate serverless config
 npx serverless print
@@ -387,29 +442,46 @@ npx serverless print
 
 ```bash
 # View function logs
-npm run logs:register
+npm run logs:mqtt
 
-# Test function locally
-npm run invoke:register --data '{"body": "{\"api_key\": \"test-key\"}"}'
+# Test IoT Core rule
+aws iot-data publish \
+  --topic durin/ha/test-install-id/register \
+  --payload '{"installation_id":"test-install-id"}' \
+  --endpoint your-iot-endpoint.iot.region.amazonaws.com
 ```
 
 #### 3. DynamoDB Issues
 
 ```bash
 # Check table status
-aws dynamodb describe-table --table-name homeassistant-cloud-backend-dev-data
+aws dynamodb describe-table --table-name durin-mqtt-backend-dev-data
 
 # View table items (development only)
-aws dynamodb scan --table-name homeassistant-cloud-backend-dev-data --limit 10
+aws dynamodb scan --table-name durin-mqtt-backend-dev-data --limit 10
 ```
 
-#### 4. API Gateway Issues
+#### 4. MQTT Connection Issues
 
 ```bash
-# Test endpoints directly
-curl -X POST https://your-api-url/dev/ha/register \
-  -H "Content-Type: application/json" \
-  -d '{"api_key": "test-key"}'
+# Test MQTT connectivity
+aws iot describe-endpoint --endpoint-type iot:Data-ATS
+
+# Check IoT Core logs
+aws logs tail /aws/iot/logs --follow
+
+# Verify IoT policy
+aws iot get-policy --policy-name durin-mqtt-policy
+```
+
+#### 5. Certificate Authentication Issues
+
+```bash
+# List attached certificates
+aws iot list-principal-things --principal "arn:aws:iot:region:account:cert/cert-id"
+
+# Check certificate status
+aws iot describe-certificate --certificate-id "cert-id"
 ```
 
 ### Debug Mode
@@ -420,6 +492,9 @@ Enable debug logging:
 # Deploy with debug logging
 serverless deploy --stage dev --verbose
 
+# Enable IoT Core logging
+aws iot set-v2-logging-options --role-arn "arn:aws:iam::account:role/IoTLoggingRole" --default-log-level DEBUG
+
 # Set environment variable for more logging
 export SLS_DEBUG=*
 serverless deploy
@@ -427,19 +502,27 @@ serverless deploy
 
 ## Development
 
-### Local Development
+### Local MQTT Testing
 
 ```bash
-# Install dependencies
-npm install
+# Install mosquitto MQTT client
+brew install mosquitto  # macOS
+apt-get install mosquitto-clients  # Linux
 
-# Run offline
-npm run offline
+# Subscribe to test topic
+mosquitto_sub -h your-iot-endpoint.iot.region.amazonaws.com -p 8883 \
+  --cert ~/certs/certificate.pem.crt \
+  --key ~/certs/private.pem.key \
+  --cafile ~/certs/AmazonRootCA1.pem \
+  -t 'durin/ha/+/#'
 
-# Test locally
-curl -X POST http://localhost:3000/ha/register \
-  -H "Content-Type: application/json" \
-  -d '{"api_key": "test-key"}'
+# Publish test message
+mosquitto_pub -h your-iot-endpoint.iot.region.amazonaws.com -p 8883 \
+  --cert ~/certs/certificate.pem.crt \
+  --key ~/certs/private.pem.key \
+  --cafile ~/certs/AmazonRootCA1.pem \
+  -t 'durin/ha/test-id/register' \
+  -m '{"installation_id":"test-id"}'
 ```
 
 ### Testing
@@ -521,8 +604,31 @@ npm run info > backup-info.txt
 # Deploy new version
 ./deploy.sh prod
 
-# Test thoroughly before updating Home Assistant integration
-./test-endpoints.sh prod
+# Verify IoT endpoint is accessible
+aws iot describe-endpoint --endpoint-type iot:Data-ATS
+
+# Monitor deployment
+npm run logs:mqtt -- --tail
+```
+
+### Certificate Management
+
+When rotating certificates:
+
+```bash
+# Create new certificate
+aws iot create-keys-and-certificate \
+  --set-as-active \
+  --certificate-pem-outfile certificate.pem.crt \
+  --public-key-outfile public.pem.key \
+  --private-key-outfile private.pem.key
+
+# Attach policy to certificate
+aws iot attach-policy \
+  --policy-name durin-mqtt-policy \
+  --target "arn:aws:iot:region:account:cert/cert-id"
+
+# Update Home Assistant integration with new certificate
 ```
 
 ### Data Migration

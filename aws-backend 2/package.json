@@ -1,7 +1,7 @@
 {
-  "name": "homeassistant-cloud-backend",
+  "name": "durin-mqtt-backend",
   "version": "1.0.0",
-  "description": "AWS Cloud Backend for Home Assistant Custom Integration",
+  "description": "AWS MQTT Backend for Durin Home Assistant Integration",
   "main": "index.js",
   "scripts": {
     "deploy": "serverless deploy",
@@ -11,13 +11,9 @@
     "remove:dev": "serverless remove --stage dev",
     "remove:prod": "serverless remove --stage prod",
     "offline": "serverless offline",
-    "logs:register": "serverless logs -f register --tail",
-    "logs:sync": "serverless logs -f sync --tail",
-    "logs:webhook": "serverless logs -f webhook --tail",
+    "logs:mqtt": "serverless logs -f mqttProcessor --tail",
     "logs:events": "serverless logs -f eventProcessor --tail",
-    "invoke:register": "serverless invoke -f register",
-    "invoke:sync": "serverless invoke -f sync",
-    "invoke:webhook": "serverless invoke -f webhook",
+    "invoke:mqtt": "serverless invoke -f mqttProcessor",
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "jest --testPathPattern=test/unit",
     "test:integration": "jest --testPathPattern=test/integration",
@@ -28,20 +24,23 @@
   },
   "keywords": [
     "home-assistant",
+    "durin",
     "aws",
     "serverless",
     "lambda",
     "dynamodb",
     "eventbridge",
-    "iot"
+    "iot-core",
+    "mqtt"
   ],
-  "author": "Your Name <your.email@example.com>",
+  "author": "Durin AI",
   "license": "MIT",
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.450.0",
     "@aws-sdk/lib-dynamodb": "^3.450.0",
     "@aws-sdk/client-eventbridge": "^3.450.0",
     "@aws-sdk/client-sns": "^3.450.0",
+    "@aws-sdk/client-iot-data-plane": "^3.450.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
@@ -59,10 +58,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/homeassistant-cloud-backend.git"
+    "url": "https://github.com/durin-ai/HAIntegration.git"
   },
   "bugs": {
-    "url": "https://github.com/your-username/homeassistant-cloud-backend/issues"
+    "url": "https://github.com/durin-ai/HAIntegration/issues"
   },
-  "homepage": "https://github.com/your-username/homeassistant-cloud-backend#readme"
+  "homepage": "https://github.com/durin-ai/HAIntegration#readme"
 }

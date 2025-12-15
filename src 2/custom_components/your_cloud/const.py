@@ -7,16 +7,22 @@ DOMAIN: Final = "your_cloud"
 
 # Configuration keys
 CONF_API_KEY: Final = "api_key"
-CONF_API_URL: Final = "api_url"
+CONF_MQTT_BROKER: Final = "mqtt_broker"
+CONF_MQTT_PORT: Final = "mqtt_port"
+CONF_MQTT_USERNAME: Final = "mqtt_username"
+CONF_MQTT_PASSWORD: Final = "mqtt_password"
 CONF_INSTALLATION_ID: Final = "installation_id"
-CONF_WEBHOOK_URL: Final = "webhook_url"
+CONF_USE_TLS: Final = "use_tls"
 
 # Default values
-DEFAULT_API_URL: Final = "https://your-api-gateway-url.execute-api.us-east-1.amazonaws.com/dev"
+DEFAULT_MQTT_BROKER: Final = "your-iot-endpoint.iot.us-east-1.amazonaws.com"
+DEFAULT_MQTT_PORT: Final = 8883  # MQTT over TLS
 DEFAULT_NAME: Final = "Home Assistant Cloud"
+DEFAULT_USE_TLS: Final = True
 
 # Timeouts and intervals
-API_TIMEOUT: Final = 30  # seconds
+MQTT_TIMEOUT: Final = 30  # seconds
+MQTT_KEEPALIVE: Final = 60  # seconds
 SYNC_INTERVAL: Final = timedelta(minutes=5)  # Sync every 5 minutes
 RETRY_INTERVAL: Final = timedelta(minutes=1)  # Retry failed operations after 1 minute
 
@@ -65,11 +71,13 @@ SECURITY_DEVICE_CLASSES: Final = [
 # Maximum number of entities to sync in one batch
 MAX_SYNC_ENTITIES: Final = 100
 
-# Cloud service endpoints
-ENDPOINTS: Final = {
-    "register": "/ha/register",
-    "sync": "/ha/sync", 
-    "webhook": "/webhook",
+# MQTT topics
+MQTT_TOPICS: Final = {
+    "register": "durin/ha/{installation_id}/register",
+    "sync": "durin/ha/{installation_id}/sync",
+    "commands": "durin/ha/{installation_id}/commands",
+    "status": "durin/ha/{installation_id}/status",
+    "events": "durin/ha/{installation_id}/events",
 }
 
 # Service call names
@@ -77,9 +85,9 @@ SERVICE_SYNC_DEVICES: Final = "sync_devices"
 SERVICE_SEND_COMMAND: Final = "send_command"
 
 # Error messages
-ERROR_API_KEY_INVALID: Final = "invalid_api_key"
-ERROR_CONNECTION_FAILED: Final = "connection_failed"
-ERROR_INSTALLATION_NOT_FOUND: Final = "installation_not_found"
+ERROR_MQTT_AUTH_FAILED: Final = "mqtt_auth_failed"
+ERROR_MQTT_CONNECTION_FAILED: Final = "mqtt_connection_failed"
+ERROR_BROKER_UNREACHABLE: Final = "broker_unreachable"
 ERROR_SYNC_FAILED: Final = "sync_failed"
 
 # Event types

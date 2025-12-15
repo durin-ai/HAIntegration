@@ -1,4 +1,4 @@
-service: homeassistant-cloud-backend
+service: durin-mqtt-backend
 
 frameworkVersion: '3'
 
@@ -14,7 +14,7 @@ provider:
   environment:
     TABLE_NAME: ${self:service}-${self:provider.stage}-data
     EVENT_BUS_NAME: ${self:service}-${self:provider.stage}-events
-    API_GATEWAY_URL: !Sub "https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}"
+    IOT_ENDPOINT: !GetAtt IotEndpointProvider.IotEndpoint
   
   # IAM permissions
   iam:
@@ -39,6 +39,13 @@ provider:
             - !GetAtt EventBus.Arn
         - Effect: Allow
           Action:
+            - iot:Publish
+            - iot:Subscribe
+            - iot:Connect
+            - iot:Receive
+          Resource: "*"
+        - Effect: Allow
+          Action:
             - sns:Publish
           Resource: !Ref NotificationTopic
         - Effect: Allow
@@ -49,39 +56,13 @@ provider:
           Resource: "*"
 
 functions:
-  register:
-    handler: lambda/register.handler
-    description: "Register a new Home Assistant installation"
-    events:
-      - http:
-          path: ha/register
-          method: post
-          cors: true
+  mqttProcessor:
+    handler: lambda/mqtt-processor.handler
+    description: "Process MQTT messages from Home Assistant installations"
+    timeout: 60
     environment:
       NOTIFICATION_TOPIC_ARN: !Ref NotificationTopic
-
-  sync:
-    handler: lambda/sync.handler
-    description: "Sync devices and entities from Home Assistant"
-    events:
-      - http:
-          path: ha/sync
-          method: post
-          cors: true
-    timeout: 60  # Longer timeout for bulk operations
-
-  webhook:
-    handler: lambda/webhook.handler
-    description: "Webhook endpoint for bidirectional communication"
-    events:
-      - http:
-          path: webhook/{webhook_id}
-          method: post
-          cors: true
-          request:
-            parameters:
-              paths:
-                webhook_id: true
+    # Triggered by IoT Rule
 
   eventProcessor:
     handler: lambda/eventbridge-processor.handler
@@ -91,11 +72,11 @@ functions:
           eventBus: !Ref EventBus
           pattern:
             source:
-              - homeassistant.integration
+              - durin.mqtt
             detail-type:
               - DevicesSynced
               - InstallationRegistered
-              - CommandSent
+              - CommandReceived
               - StatusUpdate
     environment:
       NOTIFICATION_TOPIC_ARN: !Ref NotificationTopic
@@ -141,47 +122,116 @@ resources:
           - Key: Stage
             Value: ${self:provider.stage}
 
-    # Custom EventBridge Bus for Home Assistant events
+    # Custom EventBridge Bus for Durin events
     EventBus:
       Type: AWS::Events::EventBus
       Properties:
         Name: ${self:service}-${self:provider.stage}-events
-        Description: "EventBridge bus for Home Assistant integration events"
+        Description: "EventBridge bus for Durin MQTT integration events"
         Tags:
           - Key: Service
             Value: ${self:service}
           - Key: Stage
             Value: ${self:provider.stage}
 
-    # SNS Topic for notifications (optional)
+    # SNS Topic for notifications
     NotificationTopic:
       Type: AWS::SNS::Topic
       Properties:
         TopicName: ${self:service}-${self:provider.stage}-notifications
-        DisplayName: "Home Assistant Cloud Notifications"
+        DisplayName: "Durin MQTT Notifications"
         Tags:
           - Key: Service
             Value: ${self:service}
           - Key: Stage
             Value: ${self:provider.stage}
 
-    # CloudWatch Log Groups with retention
-    RegisterLogGroup:
-      Type: AWS::Logs::LogGroup
+    # AWS IoT Core Topic Rule for MQTT messages
+    IoTTopicRule:
+      Type: AWS::IoT::TopicRule
       Properties:
-        LogGroupName: /aws/lambda/${self:service}-${self:provider.stage}-register
-        RetentionInDays: 14
+        RuleName: ${self:service}_${self:provider.stage}_mqtt_rule
+        TopicRulePayload:
+          Sql: "SELECT * FROM 'durin/ha/+/#'"
+          Description: "Route all Durin MQTT messages to Lambda processor"
+          Actions:
+            - Lambda:
+                FunctionArn: !GetAtt MqttProcessorLambdaFunction.Arn
+          RuleDisabled: false
 
-    SyncLogGroup:
-      Type: AWS::Logs::LogGroup
+    # Permission for IoT Rule to invoke Lambda
+    IoTRuleLambdaPermission:
+      Type: AWS::Lambda::Permission
       Properties:
-        LogGroupName: /aws/lambda/${self:service}-${self:provider.stage}-sync
-        RetentionInDays: 14
+        FunctionName: !Ref MqttProcessorLambdaFunction
+        Action: lambda:InvokeFunction
+        Principal: iot.amazonaws.com
+        SourceArn: !GetAtt IoTTopicRule.Arn
 
-    WebhookLogGroup:
+    # Custom resource to get IoT endpoint
+    IotEndpointProvider:
+      Type: Custom::IotEndpoint
+      Properties:
+        ServiceToken: !GetAtt IotEndpointFunction.Arn
+
+    # Lambda to retrieve IoT endpoint
+    IotEndpointFunction:
+      Type: AWS::Lambda::Function
+      Properties:
+        FunctionName: ${self:service}-${self:provider.stage}-iot-endpoint
+        Runtime: python3.9
+        Handler: index.handler
+        Role: !GetAtt IotEndpointFunctionRole.Arn
+        Code:
+          ZipFile: |
+            import boto3
+            import cfnresponse
+            
+            def handler(event, context):
+                try:
+                    if event['RequestType'] == 'Delete':
+                        cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                        return
+                    
+                    client = boto3.client('iot')
+                    response = client.describe_endpoint(endpointType='iot:Data-ATS')
+                    endpoint = response['endpointAddress']
+                    
+                    cfnresponse.send(event, context, cfnresponse.SUCCESS, {
+                        'IotEndpoint': endpoint
+                    })
+                except Exception as e:
+                    print(f"Error: {e}")
+                    cfnresponse.send(event, context, cfnresponse.FAILED, {})
+
+    # IAM Role for IoT Endpoint Function
+    IotEndpointFunctionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Policies:
+          - PolicyName: IoTDescribeEndpoint
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - iot:DescribeEndpoint
+                  Resource: '*'
+
+    # CloudWatch Log Groups
+    MqttProcessorLogGroup:
       Type: AWS::Logs::LogGroup
       Properties:
-        LogGroupName: /aws/lambda/${self:service}-${self:provider.stage}-webhook
+        LogGroupName: /aws/lambda/${self:service}-${self:provider.stage}-mqttProcessor
         RetentionInDays: 14
 
     EventProcessorLogGroup:
@@ -191,9 +241,9 @@ resources:
         RetentionInDays: 30
 
   Outputs:
-    ApiGatewayUrl:
-      Description: "API Gateway endpoint URL"
-      Value: !Sub "https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}"
+    IoTEndpoint:
+      Description: "AWS IoT Core endpoint for MQTT connections"
+      Value: !GetAtt IotEndpointProvider.IotEndpoint
     
     DynamoDBTableName:
       Description: "DynamoDB table name"
@@ -206,6 +256,10 @@ resources:
     NotificationTopicArn:
       Description: "SNS notification topic ARN"
       Value: !Ref NotificationTopic
+
+    IoTTopicRuleName:
+      Description: "IoT Topic Rule name"
+      Value: !Ref IoTTopicRule
 
 plugins:
   - serverless-offline
