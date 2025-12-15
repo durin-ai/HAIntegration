@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Home Assistant Cloud Setup",
+        "title": "Durin Ecosystem Setup",
         "description": "Connect your Home Assistant to Durin cloud backend via MQTT for device synchronization and remote control.",
         "data": {
           "mqtt_broker": "MQTT Broker",
@@ -14,7 +14,7 @@
         }
       },
       "reauth_confirm": {
-        "title": "Reauthorize Home Assistant Cloud",
+        "title": "Reauthorize Durin Ecosystem",
         "description": "Your MQTT credentials need to be updated. Please provide valid credentials.",
         "data": {
           "mqtt_username": "MQTT Username",

@@ -2,7 +2,7 @@
   "name": "Durin Home Assistant Integration",
   "content_in_root": false,
   "render_readme": true,
-  "filename": "src/custom_components/your_cloud",
+  "filename": "src/custom_components/durin",
   "domains": ["sensor", "binary_sensor"],
   "iot_class": "cloud_push",
   "homeassistant": "2024.1.0"

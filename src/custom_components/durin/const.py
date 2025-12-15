@@ -1,9 +1,9 @@
-"""Constants for the Home Assistant Cloud integration."""
+"""Constants for the Durin Ecosystem integration."""
 from datetime import timedelta
 from typing import Final
 
 # Integration domain
-DOMAIN: Final = "your_cloud"
+DOMAIN: Final = "durin"
 
 # Configuration keys
 CONF_API_KEY: Final = "api_key"
@@ -17,7 +17,7 @@ CONF_USE_TLS: Final = "use_tls"
 # Default values
 DEFAULT_MQTT_BROKER: Final = "your-iot-endpoint.iot.us-east-1.amazonaws.com"
 DEFAULT_MQTT_PORT: Final = 8883  # MQTT over TLS
-DEFAULT_NAME: Final = "Home Assistant Cloud"
+DEFAULT_NAME: Final = "Durin Ecosystem"
 DEFAULT_USE_TLS: Final = True
 
 # Timeouts and intervals
