@@ -15,19 +15,27 @@ This custom component provides cloud-based device synchronization and control fo
 ## Prerequisites
 
 1. **AWS Account**: You need an active AWS account with appropriate permissions
-2. **API Key**: Obtain an API key from your cloud service provider
-3. **Home Assistant**: Version 2024.1.0 or newer
+2. **AWS IoT Core**: Deploy the backend infrastructure (see Cloud Backend Setup below)
+3. **MQTT Credentials**: Obtain MQTT broker endpoint and credentials from your deployment
+4. **Home Assistant**: Version 2024.1.0 or newer
 
 ## Installation
 
 ### Method 1: HACS (Recommended)
 
 1. Install [HACS](https://hacs.xyz/) if you haven't already
-2. Go to HACS → Integrations
-3. Click the three dots menu → Custom repositories
-4. Add this repository URL and select "Integration" as category
-5. Find "Home Assistant Cloud" in the integration list and install it
-6. Restart Home Assistant
+2. Go to **HACS** → **Integrations**
+3. Click the **⋮** (three dots menu) in the top right → **Custom repositories**
+4. Add the repository:
+   - **Repository**: `https://github.com/durin-ai/HAIntegration`
+   - **Category**: `Integration`
+5. Click **Add**
+6. Click the **+ Explore & Download Repositories** button
+7. Search for **"Durin"** or **"Durin Home Assistant Integration"**
+8. Click on it and then click **Download**
+9. Restart Home Assistant
+
+**Note**: After installation, you still need to deploy the AWS backend before configuring the integration.
 
 ### Method 2: Manual Installation
 
@@ -72,18 +80,23 @@ The script will:
 3. Search for "Home Assistant Cloud"
 4. Click on it to start the configuration
 
-### Step 2: Enter Your Credentials
+### Step 2: Enter Your MQTT Credentials
 
-1. **API Key**: Enter your cloud service API key
-2. **API URL**: Enter your cloud backend URL (or use the default)
-3. **Name**: Choose a name for this integration (optional)
+1. **MQTT Broker**: Enter your AWS IoT Core endpoint (e.g., `a1b2c3.iot.us-east-1.amazonaws.com`)
+2. **MQTT Port**: Enter `8883` (default for MQTT over TLS)
+3. **MQTT Username**: Your MQTT username (if using username/password auth)
+4. **MQTT Password**: Your MQTT password (if using username/password auth)
+5. **Use TLS**: Enable TLS encryption (recommended)
+
+**Note**: For certificate-based authentication with AWS IoT Core, you may need to configure certificates separately. See the [AWS IoT Core documentation](https://docs.aws.amazon.com/iot/latest/developerguide/protocols.html) for details.
 
 ### Step 3: Complete Setup
 
 The integration will automatically:
-- Register your Home Assistant instance with the cloud
-- Generate a unique installation ID and webhook URL
-- Start syncing your devices and entities
+- Connect to your AWS IoT Core MQTT broker
+- Register your Home Assistant instance
+- Subscribe to command topics
+- Start publishing device states and events
 
 ## Cloud Backend Setup
 
