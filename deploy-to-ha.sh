@@ -28,16 +28,21 @@ fi
 # Create custom_components directory if it doesn't exist
 mkdir -p "$TARGET_DIR"
 
-# Remove old installation if it exists
+# Remove old Python and JSON files only (preserve icons folder)
 if [ -d "$TARGET_DIR/$INTEGRATION_NAME" ]; then
     echo "🧹 Cleaning old installation..."
-    rm -rf "$TARGET_DIR/$INTEGRATION_NAME"
-    echo "✅ Old installation removed"
+    rm -f "$TARGET_DIR/$INTEGRATION_NAME/"*.py
+    rm -f "$TARGET_DIR/$INTEGRATION_NAME/"*.json
+    echo "✅ Old files removed"
+else
+    echo "📁 Creating integration directory..."
+    mkdir -p "$TARGET_DIR/$INTEGRATION_NAME"
 fi
 
-# Copy new files
+# Copy new files (icons folder managed separately, already deployed)
 echo "📦 Copying new files..."
-cp -r "$SOURCE_DIR" "$TARGET_DIR/"
+cp "$SOURCE_DIR/"*.py "$TARGET_DIR/$INTEGRATION_NAME/"
+cp "$SOURCE_DIR/"*.json "$TARGET_DIR/$INTEGRATION_NAME/"
 
 # Verify deployment
 if [ -d "$TARGET_DIR/$INTEGRATION_NAME" ]; then

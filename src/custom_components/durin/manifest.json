@@ -1,6 +1,7 @@
 {
   "domain": "durin",
   "name": "Durin Ecosystem",
+  "icon": "durin",
   "codeowners": ["@your-username"],
   "config_flow": true,
   "dependencies": [],

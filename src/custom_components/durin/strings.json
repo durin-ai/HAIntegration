@@ -5,8 +5,11 @@
         "title": "Durin Ecosystem Setup",
         "description": "Enter your 6-digit Durin code to connect your Home Assistant to the Durin ecosystem.",
         "data": {
-          "durin_code": "Durin Code (6 digits)",
-          "name": "Integration Name"
+          "name": "Integration Name",
+          "durin_code": "Durin Code (6 digits)"
+        },
+        "data_description": {
+          "durin_code": "Obtain this code from the Durin Mobile App in the Residence you want to link with this Home Assistant instance."
         }
       },
       "reauth_confirm": {
