@@ -39,10 +39,17 @@ else
     mkdir -p "$TARGET_DIR/$INTEGRATION_NAME"
 fi
 
-# Copy new files (icons folder managed separately, already deployed)
+# Copy new files (icons are now in root, managed via Samba)
 echo "📦 Copying new files..."
 cp "$SOURCE_DIR/"*.py "$TARGET_DIR/$INTEGRATION_NAME/"
 cp "$SOURCE_DIR/"*.json "$TARGET_DIR/$INTEGRATION_NAME/"
+cp "$SOURCE_DIR/"*.png "$TARGET_DIR/$INTEGRATION_NAME/" 2>/dev/null || true
+
+# Copy translations folder if it exists
+if [ -d "$SOURCE_DIR/translations" ]; then
+    echo "📦 Copying translations..."
+    cp "$SOURCE_DIR/translations/"* "$TARGET_DIR/$INTEGRATION_NAME/translations/" 2>/dev/null || true
+fi
 
 # Verify deployment
 if [ -d "$TARGET_DIR/$INTEGRATION_NAME" ]; then

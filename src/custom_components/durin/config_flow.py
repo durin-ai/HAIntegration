@@ -33,7 +33,7 @@ _LOGGER = logging.getLogger(__name__)
 
 # Configuration schema for user input - only ask for Durin code
 STEP_USER_DATA_SCHEMA = vol.Schema({
-    vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
+    vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
     vol.Required(CONF_DURIN_CODE): str,
 })
 

@@ -1,0 +1,110 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Durin Ecosystem Setup",
+        "description": "Enter your 6-digit Durin code to connect your Home Assistant to the Durin ecosystem.",
+        "data": {
+          "name": "Integration Name",
+          "durin_code": "Durin Code (6 digits)"
+        },
+        "data_description": {
+          "durin_code": "Obtain this code from the Durin Mobile App in the Residence you want to link with this Home Assistant instance."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reauthorize Durin Ecosystem",
+        "description": "Enter a new 6-digit Durin code to reauthorize your connection.",
+        "data": {
+          "durin_code": "Durin Code (6 digits)"
+        }
+      }
+    },
+    "error": {
+      "invalid_code": "Invalid Durin code. Please check the code and try again.",
+      "code_expired": "This Durin code has expired. Please generate a new code.",
+      "connection_failed": "Unable to connect to the Durin backend. Please check your internet connection.",
+      "unknown": "An unexpected error occurred. Please try again later."
+    },
+    "abort": {
+      "already_configured": "This installation is already configured.",
+      "reauth_successful": "Re-authentication was successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Cloud Integration Options",
+        "description": "Configure advanced options for the MQTT cloud integration.",
+        "data": {
+          "mqtt_broker": "MQTT Broker",
+          "mqtt_port": "MQTT Port",
+          "use_tls": "Use TLS/SSL"
+        }
+      }
+    }
+  },
+  "services": {
+    "sync_devices": {
+      "name": "Sync Devices",
+      "description": "Manually sync all devices and entities with the cloud backend."
+    },
+    "send_command": {
+      "name": "Send Command",
+      "description": "Send a command to a specific entity through the cloud.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity ID",
+          "description": "The entity to send the command to."
+        },
+        "action": {
+          "name": "Action",
+          "description": "The action to perform (e.g., turn_on, turn_off, set_brightness)."
+        },
+        "params": {
+          "name": "Parameters",
+          "description": "Additional parameters for the command as a JSON object."
+        }
+      }
+    }
+  },
+  "issues": {
+    "cloud_connection_failed": {
+      "title": "Cloud Connection Failed",
+      "description": "The connection to the MQTT broker has failed. Please check your network connection and MQTT configuration."
+    },
+    "sync_failed": {
+      "title": "Device Sync Failed", 
+      "description": "Unable to sync devices with the cloud backend via MQTT. The integration will retry automatically."
+    },
+    "mqtt_auth_failed": {
+      "title": "MQTT Authentication Failed",
+      "description": "Your MQTT credentials are invalid or have been revoked. Please update your configuration with valid credentials."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "cloud_status": {
+        "name": "Cloud Connection Status",
+        "state": {
+          "connected": "Connected",
+          "disconnected": "Disconnected", 
+          "connecting": "Connecting",
+          "error": "Error"
+        }
+      },
+      "last_sync": {
+        "name": "Last Sync Time",
+        "state": {
+          "never": "Never"
+        }
+      },
+      "synced_devices": {
+        "name": "Synced Devices Count"
+      },
+      "synced_entities": {
+        "name": "Synced Entities Count"
+      }
+    }
+  }
+}
