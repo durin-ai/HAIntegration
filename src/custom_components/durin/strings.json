@@ -3,29 +3,24 @@
     "step": {
       "user": {
         "title": "Durin Ecosystem Setup",
-        "description": "Connect your Home Assistant to Durin cloud backend via MQTT for device synchronization and remote control.",
+        "description": "Enter your 6-digit Durin code to connect your Home Assistant to the Durin ecosystem.",
         "data": {
-          "mqtt_broker": "MQTT Broker",
-          "mqtt_port": "MQTT Port",
-          "mqtt_username": "MQTT Username",
-          "mqtt_password": "MQTT Password",
-          "use_tls": "Use TLS/SSL",
+          "durin_code": "Durin Code (6 digits)",
           "name": "Integration Name"
         }
       },
       "reauth_confirm": {
         "title": "Reauthorize Durin Ecosystem",
-        "description": "Your MQTT credentials need to be updated. Please provide valid credentials.",
+        "description": "Enter a new 6-digit Durin code to reauthorize your connection.",
         "data": {
-          "mqtt_username": "MQTT Username",
-          "mqtt_password": "MQTT Password"
+          "durin_code": "Durin Code (6 digits)"
         }
       }
     },
     "error": {
-      "mqtt_auth_failed": "MQTT authentication failed. Please check your credentials.",
-      "mqtt_connection_failed": "Unable to connect to the MQTT broker. Please check your network connection and broker settings.",
-      "broker_unreachable": "MQTT broker is unreachable. Please verify the broker address and port.",
+      "invalid_code": "Invalid Durin code. Please check the code and try again.",
+      "code_expired": "This Durin code has expired. Please generate a new code.",
+      "connection_failed": "Unable to connect to the Durin backend. Please check your internet connection.",
       "unknown": "An unexpected error occurred. Please try again later."
     },
     "abort": {

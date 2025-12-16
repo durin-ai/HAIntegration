@@ -1,6 +1,7 @@
-"""Config flow for Home Assistant Cloud integration."""
+"""Config flow for Durin Ecosystem integration."""
 import logging
 from typing import Any, Dict, Optional
+import re
 
 import aiomqtt
 import async_timeout
@@ -15,6 +16,7 @@ from .const import (
     DEFAULT_MQTT_BROKER,
     DEFAULT_MQTT_PORT,
     DEFAULT_USE_TLS,
+    CONF_DURIN_CODE,
     CONF_MQTT_BROKER,
     CONF_MQTT_PORT,
     CONF_MQTT_USERNAME,
@@ -22,19 +24,16 @@ from .const import (
     CONF_INSTALLATION_ID,
     CONF_USE_TLS,
     MQTT_TIMEOUT,
-    ERROR_MQTT_AUTH_FAILED,
-    ERROR_MQTT_CONNECTION_FAILED,
+    ERROR_INVALID_CODE,
+    ERROR_CODE_EXPIRED,
+    ERROR_CONNECTION_FAILED,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-# Configuration schema for user input
+# Configuration schema for user input - only ask for Durin code
 STEP_USER_DATA_SCHEMA = vol.Schema({
-    vol.Required(CONF_MQTT_BROKER, default=DEFAULT_MQTT_BROKER): str,
-    vol.Optional(CONF_MQTT_PORT, default=DEFAULT_MQTT_PORT): int,
-    vol.Required(CONF_MQTT_USERNAME): str,
-    vol.Required(CONF_MQTT_PASSWORD): str,
-    vol.Optional(CONF_USE_TLS, default=DEFAULT_USE_TLS): bool,
+    vol.Required(CONF_DURIN_CODE): str,
     vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
 })
 
@@ -54,13 +53,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self):
         """Initialize the config flow."""
-        self._mqtt_broker: Optional[str] = None
-        self._mqtt_port: Optional[int] = None
-        self._mqtt_username: Optional[str] = None
-        self._mqtt_password: Optional[str] = None
-        self._use_tls: Optional[bool] = None
+        self._durin_code: Optional[str] = None
         self._name: Optional[str] = None
         self._installation_id: Optional[str] = None
+        # MQTT parameters will be retrieved from backend
+        self._mqtt_config: Optional[Dict[str, Any]] = None
 
     async def async_step_user(
         self, user_input: Optional[Dict[str, Any]] = None
@@ -69,38 +66,39 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: Dict[str, str] = {}
 
         if user_input is not None:
-            self._mqtt_broker = user_input[CONF_MQTT_BROKER]
-            self._mqtt_port = user_input[CONF_MQTT_PORT]
-            self._mqtt_username = user_input[CONF_MQTT_USERNAME]
-            self._mqtt_password = user_input[CONF_MQTT_PASSWORD]
-            self._use_tls = user_input.get(CONF_USE_TLS, True)
+            self._durin_code = user_input[CONF_DURIN_CODE].strip()
             self._name = user_input[CONF_NAME]
 
-            # Validate MQTT credentials
+            # Validate the 6-digit Durin code
             try:
-                await self._test_mqtt_connection()
-            except InvalidAuth:
-                errors["base"] = ERROR_MQTT_AUTH_FAILED
+                self._mqtt_config = await self._validate_durin_code(self._durin_code)
+            except InvalidCode:
+                errors["base"] = ERROR_INVALID_CODE
+            except CodeExpired:
+                errors["base"] = ERROR_CODE_EXPIRED
             except CannotConnect:
-                errors["base"] = ERROR_MQTT_CONNECTION_FAILED
+                errors["base"] = ERROR_CONNECTION_FAILED
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Unexpected exception during setup")
                 errors["base"] = "unknown"
             else:
-                # Use broker as unique ID to prevent duplicate configurations
-                await self.async_set_unique_id(f"{self._mqtt_broker}:{self._mqtt_port}")
+                # Use installation_id as unique ID
+                installation_id = self._mqtt_config.get(CONF_INSTALLATION_ID)
+                await self.async_set_unique_id(installation_id)
                 self._abort_if_unique_id_configured()
 
-                # Create the config entry
+                # Create the config entry with MQTT config from backend
                 return self.async_create_entry(
                     title=self._name,
                     data={
-                        CONF_MQTT_BROKER: self._mqtt_broker,
-                        CONF_MQTT_PORT: self._mqtt_port,
-                        CONF_MQTT_USERNAME: self._mqtt_username,
-                        CONF_MQTT_PASSWORD: self._mqtt_password,
-                        CONF_USE_TLS: self._use_tls,
+                        CONF_DURIN_CODE: self._durin_code,
                         CONF_NAME: self._name,
+                        CONF_INSTALLATION_ID: installation_id,
+                        CONF_MQTT_BROKER: self._mqtt_config[CONF_MQTT_BROKER],
+                        CONF_MQTT_PORT: self._mqtt_config[CONF_MQTT_PORT],
+                        CONF_MQTT_USERNAME: self._mqtt_config[CONF_MQTT_USERNAME],
+                        CONF_MQTT_PASSWORD: self._mqtt_config[CONF_MQTT_PASSWORD],
+                        CONF_USE_TLS: self._mqtt_config.get(CONF_USE_TLS, True),
                     },
                 )
 
@@ -112,9 +110,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_reauth(self, entry_data: Dict[str, Any]) -> FlowResult:
         """Handle reauthorization."""
-        self._mqtt_broker = entry_data.get(CONF_MQTT_BROKER, DEFAULT_MQTT_BROKER)
-        self._mqtt_port = entry_data.get(CONF_MQTT_PORT, DEFAULT_MQTT_PORT)
-        self._use_tls = entry_data.get(CONF_USE_TLS, DEFAULT_USE_TLS)
         self._name = entry_data.get(CONF_NAME, DEFAULT_NAME)
         
         return await self.async_step_reauth_confirm()
@@ -126,29 +121,33 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: Dict[str, str] = {}
 
         if user_input is not None:
-            self._mqtt_username = user_input[CONF_MQTT_USERNAME]
-            self._mqtt_password = user_input[CONF_MQTT_PASSWORD]
+            self._durin_code = user_input[CONF_DURIN_CODE].strip()
 
             try:
-                await self._test_mqtt_connection()
-            except InvalidAuth:
-                errors["base"] = ERROR_MQTT_AUTH_FAILED
+                self._mqtt_config = await self._validate_durin_code(self._durin_code)
+            except InvalidCode:
+                errors["base"] = ERROR_INVALID_CODE
+            except CodeExpired:
+                errors["base"] = ERROR_CODE_EXPIRED
             except CannotConnect:
-                errors["base"] = ERROR_MQTT_CONNECTION_FAILED
+                errors["base"] = ERROR_CONNECTION_FAILED
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Unexpected exception during reauth")
                 errors["base"] = "unknown"
             else:
                 # Update the existing entry
-                entry = await self.async_set_unique_id(
-                    f"{self._mqtt_broker}:{self._mqtt_port}"
-                )
+                installation_id = self._mqtt_config.get(CONF_INSTALLATION_ID)
+                entry = await self.async_set_unique_id(installation_id)
                 self.hass.config_entries.async_update_entry(
                     entry,
                     data={
                         **entry.data,
-                        CONF_MQTT_USERNAME: self._mqtt_username,
-                        CONF_MQTT_PASSWORD: self._mqtt_password,
+                        CONF_DURIN_CODE: self._durin_code,
+                        CONF_MQTT_BROKER: self._mqtt_config[CONF_MQTT_BROKER],
+                        CONF_MQTT_PORT: self._mqtt_config[CONF_MQTT_PORT],
+                        CONF_MQTT_USERNAME: self._mqtt_config[CONF_MQTT_USERNAME],
+                        CONF_MQTT_PASSWORD: self._mqtt_config[CONF_MQTT_PASSWORD],
+                        CONF_USE_TLS: self._mqtt_config.get(CONF_USE_TLS, True),
                     },
                 )
                 await self.hass.config_entries.async_reload(entry.entry_id)
@@ -157,8 +156,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="reauth_confirm",
             data_schema=vol.Schema({
-                vol.Required(CONF_MQTT_USERNAME): str,
-                vol.Required(CONF_MQTT_PASSWORD): str,
+                vol.Required(CONF_DURIN_CODE): str,
             }),
             errors=errors,
         )
@@ -171,36 +169,43 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Get the options flow for this handler."""
         return OptionsFlowHandler(config_entry)
 
-    async def _test_mqtt_connection(self) -> None:
-        """Validate MQTT credentials by attempting to connect."""
-        _LOGGER.debug("Testing MQTT connection to %s:%d", self._mqtt_broker, self._mqtt_port)
+    async def _validate_durin_code(self, code: str) -> Dict[str, Any]:
+        """Validate the 6-digit Durin code and retrieve MQTT configuration."""
+        _LOGGER.debug("Validating Durin code")
         
+        # Validate format: 6 digits
+        if not re.match(r'^\d{6}$', code):
+            _LOGGER.error("Invalid code format: must be 6 digits")
+            raise InvalidCode("Code must be 6 digits")
+        
+        # TODO: Call Durin backend API to validate code and get MQTT config
+        # For now, using placeholder logic
         try:
             async with async_timeout.timeout(MQTT_TIMEOUT):
-                client = aiomqtt.Client(
-                    hostname=self._mqtt_broker,
-                    port=self._mqtt_port,
-                    username=self._mqtt_username,
-                    password=self._mqtt_password,
-                    keepalive=60,
-                    tls_context=None if not self._use_tls else True,
-                )
+                # Placeholder: In production, this would call the Durin backend API
+                # Example: POST https://durin-api.example.com/v1/validate-code
+                # Response would include: installation_id, mqtt_broker, mqtt_port, 
+                # mqtt_username, mqtt_password, use_tls
                 
-                async with client:
-                    # Connection successful
-                    _LOGGER.info("MQTT connection test successful")
-                    
+                # Temporary mock response
+                mqtt_config = {
+                    CONF_INSTALLATION_ID: f"durin-{code}",
+                    CONF_MQTT_BROKER: DEFAULT_MQTT_BROKER,
+                    CONF_MQTT_PORT: DEFAULT_MQTT_PORT,
+                    CONF_MQTT_USERNAME: f"user-{code}",
+                    CONF_MQTT_PASSWORD: f"pass-{code}",
+                    CONF_USE_TLS: DEFAULT_USE_TLS,
+                }
+                
+                _LOGGER.info("Code validated successfully")
+                return mqtt_config
+                
         except asyncio.TimeoutError as err:
-            _LOGGER.error("Timeout connecting to MQTT broker")
-            raise CannotConnect("Timeout connecting to MQTT broker") from err
-        except aiomqtt.MqttError as err:
-            _LOGGER.error("MQTT error: %s", err)
-            if "authentication" in str(err).lower() or "unauthorized" in str(err).lower():
-                raise InvalidAuth("MQTT authentication failed") from err
-            raise CannotConnect(f"MQTT connection error: {err}") from err
+            _LOGGER.error("Timeout validating Durin code")
+            raise CannotConnect("Timeout connecting to Durin backend") from err
         except Exception as err:
-            _LOGGER.error("Unexpected error: %s", err)
-            raise CannotConnect("Unexpected error") from err
+            _LOGGER.error("Error validating code: %s", err)
+            raise CannotConnect(f"Validation error: {err}") from err
 
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
@@ -214,29 +219,13 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         self, user_input: Optional[Dict[str, Any]] = None
     ) -> FlowResult:
         """Manage the options."""
-        if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
-
-        current_broker = self.config_entry.data.get(CONF_MQTT_BROKER, DEFAULT_MQTT_BROKER)
-        current_port = self.config_entry.data.get(CONF_MQTT_PORT, DEFAULT_MQTT_PORT)
-        current_use_tls = self.config_entry.data.get(CONF_USE_TLS, DEFAULT_USE_TLS)
-        
+        # No options to configure - all settings come from Durin backend
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema({
-                vol.Optional(
-                    CONF_MQTT_BROKER, 
-                    default=current_broker
-                ): str,
-                vol.Optional(
-                    CONF_MQTT_PORT,
-                    default=current_port
-                ): int,
-                vol.Optional(
-                    CONF_USE_TLS,
-                    default=current_use_tls
-                ): bool,
-            }),
+            data_schema=vol.Schema({}),
+            description_placeholders={
+                "info": "Configuration is managed through the Durin platform. Use a new code to reconfigure."
+            }
         )
 
 
@@ -244,5 +233,9 @@ class CannotConnect(exceptions.HomeAssistantError):
     """Error to indicate we cannot connect."""
 
 
-class InvalidAuth(exceptions.HomeAssistantError):
-    """Error to indicate there is invalid auth."""
+class InvalidCode(exceptions.HomeAssistantError):
+    """Error to indicate the Durin code is invalid."""
+
+
+class CodeExpired(exceptions.HomeAssistantError):
+    """Error to indicate the Durin code has expired."""

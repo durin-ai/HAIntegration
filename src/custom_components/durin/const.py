@@ -6,7 +6,7 @@ from typing import Final
 DOMAIN: Final = "durin"
 
 # Configuration keys
-CONF_API_KEY: Final = "api_key"
+CONF_DURIN_CODE: Final = "durin_code"
 CONF_MQTT_BROKER: Final = "mqtt_broker"
 CONF_MQTT_PORT: Final = "mqtt_port"
 CONF_MQTT_USERNAME: Final = "mqtt_username"
@@ -85,9 +85,9 @@ SERVICE_SYNC_DEVICES: Final = "sync_devices"
 SERVICE_SEND_COMMAND: Final = "send_command"
 
 # Error messages
-ERROR_MQTT_AUTH_FAILED: Final = "mqtt_auth_failed"
-ERROR_MQTT_CONNECTION_FAILED: Final = "mqtt_connection_failed"
-ERROR_BROKER_UNREACHABLE: Final = "broker_unreachable"
+ERROR_INVALID_CODE: Final = "invalid_code"
+ERROR_CODE_EXPIRED: Final = "code_expired"
+ERROR_CONNECTION_FAILED: Final = "connection_failed"
 ERROR_SYNC_FAILED: Final = "sync_failed"
 
 # Event types
