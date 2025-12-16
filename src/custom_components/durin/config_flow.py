@@ -1,14 +1,15 @@
 """Config flow for Durin Ecosystem integration."""
+import asyncio
 import logging
 from typing import Any, Dict, Optional
 import re
 
-import aiomqtt
 import async_timeout
 import voluptuous as vol
 from homeassistant import config_entries, core, exceptions
 from homeassistant.const import CONF_NAME
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers import selector
 
 from .const import (
     DOMAIN,
@@ -31,18 +32,30 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# Configuration schema for user input - only ask for Durin code
-STEP_USER_DATA_SCHEMA = vol.Schema({
-    vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
-    vol.Required(CONF_DURIN_CODE): str,
-})
 
-# Options schema for reconfiguration
-OPTIONS_SCHEMA = vol.Schema({
-    vol.Optional(CONF_MQTT_BROKER): str,
-    vol.Optional(CONF_MQTT_PORT): int,
-    vol.Optional(CONF_USE_TLS): bool,
-})
+def _get_user_schema(defaults: Dict[str, Any] = None) -> vol.Schema:
+    """Build the user step schema with proper defaults."""
+    defaults = defaults or {}
+    return vol.Schema({
+        vol.Required(
+            CONF_NAME,
+            default=defaults.get(CONF_NAME, DEFAULT_NAME),
+        ): selector.TextSelector(
+            selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
+        ),
+        vol.Required(CONF_DURIN_CODE): selector.TextSelector(
+            selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
+        ),
+    })
+
+
+def _get_reauth_schema() -> vol.Schema:
+    """Build the reauth step schema."""
+    return vol.Schema({
+        vol.Required(CONF_DURIN_CODE): selector.TextSelector(
+            selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
+        ),
+    })
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -104,7 +117,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user",
-            data_schema=STEP_USER_DATA_SCHEMA,
+            data_schema=_get_user_schema(),
             errors=errors,
         )
 
@@ -155,9 +168,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="reauth_confirm",
-            data_schema=vol.Schema({
-                vol.Required(CONF_DURIN_CODE): str,
-            }),
+            data_schema=_get_reauth_schema(),
             errors=errors,
         )
 

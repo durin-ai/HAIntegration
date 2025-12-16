@@ -2,56 +2,53 @@
   "config": {
     "step": {
       "user": {
-        "title": "Durin Ecosystem Setup",
-        "description": "Enter your 6-digit Durin code to connect your Home Assistant to the Durin ecosystem.",
+        "description": "Enter your 6-digit Durin code to connect your Home Assistant to the Durin ecosystem.\n**Get your code from the Durin Mobile App.**",
         "data": {
-          "name": "Integration Name",
-          "durin_code": "Durin Code (6 digits)"
+          "name": "Name",
+          "durin_code": "Durin Code"
         },
         "data_description": {
-          "durin_code": "Obtain this code from the Durin Mobile App in the Residence you want to link with this Home Assistant instance."
+          "name": "A friendly name for this integration instance.",
+          "durin_code": "Obtain this 6-digit code from the Durin Mobile App in the Residence you want to link with this Home Assistant instance."
         }
       },
       "reauth_confirm": {
-        "title": "Reauthorize Durin Ecosystem",
-        "description": "Enter a new 6-digit Durin code to reauthorize your connection.",
+        "description": "Your connection needs to be reauthorized. Please enter a new 6-digit Durin code.",
         "data": {
-          "durin_code": "Durin Code (6 digits)"
+          "durin_code": "Durin Code"
+        },
+        "data_description": {
+          "durin_code": "Get a new 6-digit code from the Durin Mobile App."
         }
       }
     },
     "error": {
-      "invalid_code": "Invalid Durin code. Please check the code and try again.",
-      "code_expired": "This Durin code has expired. Please generate a new code.",
+      "invalid_code": "Invalid Durin code. The code must be exactly 6 digits.",
+      "code_expired": "This Durin code has expired. Please generate a new code in the Durin app.",
       "connection_failed": "Unable to connect to the Durin backend. Please check your internet connection.",
       "unknown": "An unexpected error occurred. Please try again later."
     },
     "abort": {
-      "already_configured": "This installation is already configured.",
+      "already_configured": "This Durin installation is already configured.",
       "reauth_successful": "Re-authentication was successful."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Cloud Integration Options",
-        "description": "Configure advanced options for the MQTT cloud integration.",
-        "data": {
-          "mqtt_broker": "MQTT Broker",
-          "mqtt_port": "MQTT Port",
-          "use_tls": "Use TLS/SSL"
-        }
+        "title": "Durin Options",
+        "description": "Configuration is managed through the Durin platform. Use a new code to reconfigure."
       }
     }
   },
   "services": {
     "sync_devices": {
       "name": "Sync Devices",
-      "description": "Manually sync all devices and entities with the cloud backend."
+      "description": "Manually sync all devices and entities with the Durin cloud."
     },
     "send_command": {
       "name": "Send Command",
-      "description": "Send a command to a specific entity through the cloud.",
+      "description": "Send a command to a specific entity through Durin.",
       "fields": {
         "entity_id": {
           "name": "Entity ID",
@@ -59,7 +56,7 @@
         },
         "action": {
           "name": "Action",
-          "description": "The action to perform (e.g., turn_on, turn_off, set_brightness)."
+          "description": "The action to perform (e.g., turn_on, turn_off)."
         },
         "params": {
           "name": "Parameters",
@@ -71,39 +68,39 @@
   "issues": {
     "cloud_connection_failed": {
       "title": "Cloud Connection Failed",
-      "description": "The connection to the MQTT broker has failed. Please check your network connection and MQTT configuration."
+      "description": "The connection to the Durin cloud has failed. Please check your network connection."
     },
     "sync_failed": {
-      "title": "Device Sync Failed", 
-      "description": "Unable to sync devices with the cloud backend via MQTT. The integration will retry automatically."
+      "title": "Device Sync Failed",
+      "description": "Unable to sync devices with the Durin cloud. The integration will retry automatically."
     },
     "mqtt_auth_failed": {
-      "title": "MQTT Authentication Failed",
-      "description": "Your MQTT credentials are invalid or have been revoked. Please update your configuration with valid credentials."
+      "title": "Authentication Failed",
+      "description": "Your credentials are invalid or have been revoked. Please reconfigure the integration."
     }
   },
   "entity": {
     "sensor": {
       "cloud_status": {
-        "name": "Cloud Connection Status",
+        "name": "Cloud Status",
         "state": {
           "connected": "Connected",
-          "disconnected": "Disconnected", 
+          "disconnected": "Disconnected",
           "connecting": "Connecting",
           "error": "Error"
         }
       },
       "last_sync": {
-        "name": "Last Sync Time",
+        "name": "Last Sync",
         "state": {
           "never": "Never"
         }
       },
       "synced_devices": {
-        "name": "Synced Devices Count"
+        "name": "Synced Devices"
       },
       "synced_entities": {
-        "name": "Synced Entities Count"
+        "name": "Synced Entities"
       }
     }
   }
