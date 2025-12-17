@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "description": "Enter your 6-digit Durin code to connect your Home Assistant to the Durin ecosystem.\n**Get your code from the Durin Mobile App.**",
+        "description": "Enter your 6-digit Durin code to connect your Home Assistant to the Durin ecosystem.\n\n**Get your code from the Durin Mobile App.**",
         "data": {
           "name": "Name",
           "durin_code": "Durin Code"
@@ -10,6 +10,26 @@
         "data_description": {
           "name": "A friendly name for this integration instance.",
           "durin_code": "Obtain this 6-digit code from the Durin Mobile App in the Residence you want to link with this Home Assistant instance."
+        }
+      },
+      "devices": {
+        "description": "Select which devices to synchronize with Durin.\n\nFound **{entity_count}** supported entities in your Home Assistant.",
+        "data": {
+          "sync_all_entities": "Sync all devices",
+          "selected_entities": "Or select specific devices"
+        },
+        "data_description": {
+          "sync_all_entities": "Enable to automatically sync all supported devices with Durin.",
+          "selected_entities": "If not syncing all, choose specific devices to sync. Supported types: lights, switches, sensors, climate, covers, locks, and more."
+        }
+      },
+      "spaces": {
+        "description": "Durin organizes devices into Spaces (rooms/areas).\n\nWould you like to import your Durin Spaces into Home Assistant?",
+        "data": {
+          "import_spaces": "Import Spaces from Durin"
+        },
+        "data_description": {
+          "import_spaces": "When enabled, Spaces from Durin will be created as Areas in Home Assistant and kept in sync."
         }
       },
       "reauth_confirm": {

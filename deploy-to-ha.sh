@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-SOURCE_DIR="/Users/frederik/Documents/GitHub/Durin/HAIntegration/src/custom_components/durin"
+SOURCE_DIR="/Users/frederik/Documents/GitHub/Durin/HAIntegration/custom_components/durin"
 TARGET_DIR="/Volumes/config/custom_components"
 INTEGRATION_NAME="durin"
 

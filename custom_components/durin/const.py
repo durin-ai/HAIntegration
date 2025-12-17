@@ -13,6 +13,9 @@ CONF_MQTT_USERNAME: Final = "mqtt_username"
 CONF_MQTT_PASSWORD: Final = "mqtt_password"
 CONF_INSTALLATION_ID: Final = "installation_id"
 CONF_USE_TLS: Final = "use_tls"
+CONF_SELECTED_ENTITIES: Final = "selected_entities"
+CONF_SYNC_ALL_ENTITIES: Final = "sync_all_entities"
+CONF_IMPORT_SPACES: Final = "import_spaces"
 
 # Default values
 DEFAULT_MQTT_BROKER: Final = "your-iot-endpoint.iot.us-east-1.amazonaws.com"

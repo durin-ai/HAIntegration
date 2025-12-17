@@ -1,7 +1,7 @@
 """Config flow for Durin Ecosystem integration."""
 import asyncio
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 import re
 
 import async_timeout
@@ -9,7 +9,7 @@ import voluptuous as vol
 from homeassistant import config_entries, core, exceptions
 from homeassistant.const import CONF_NAME
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers import selector
+from homeassistant.helpers import selector, entity_registry as er
 
 from .const import (
     DOMAIN,
@@ -24,6 +24,10 @@ from .const import (
     CONF_MQTT_PASSWORD,
     CONF_INSTALLATION_ID,
     CONF_USE_TLS,
+    CONF_SELECTED_ENTITIES,
+    CONF_SYNC_ALL_ENTITIES,
+    CONF_IMPORT_SPACES,
+    SUPPORTED_DOMAINS,
     MQTT_TIMEOUT,
     ERROR_INVALID_CODE,
     ERROR_CODE_EXPIRED,
@@ -59,23 +63,25 @@ def _get_reauth_schema() -> vol.Schema:
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Home Assistant Cloud."""
+    """Handle a config flow for Durin Ecosystem."""
 
     VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
+    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_PUSH
 
     def __init__(self):
         """Initialize the config flow."""
         self._durin_code: Optional[str] = None
         self._name: Optional[str] = None
         self._installation_id: Optional[str] = None
-        # MQTT parameters will be retrieved from backend
         self._mqtt_config: Optional[Dict[str, Any]] = None
+        self._selected_entities: List[str] = []
+        self._sync_all: bool = False
+        self._import_spaces: bool = False
 
     async def async_step_user(
         self, user_input: Optional[Dict[str, Any]] = None
     ) -> FlowResult:
-        """Handle the initial step."""
+        """Step 1: Handle the initial step - Durin code and name."""
         errors: Dict[str, str] = {}
 
         if user_input is not None:
@@ -95,31 +101,108 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected exception during setup")
                 errors["base"] = "unknown"
             else:
-                # Use installation_id as unique ID
-                installation_id = self._mqtt_config.get(CONF_INSTALLATION_ID)
-                await self.async_set_unique_id(installation_id)
+                # Code validated, proceed to device selection
+                self._installation_id = self._mqtt_config.get(CONF_INSTALLATION_ID)
+                await self.async_set_unique_id(self._installation_id)
                 self._abort_if_unique_id_configured()
-
-                # Create the config entry with MQTT config from backend
-                return self.async_create_entry(
-                    title=self._name,
-                    data={
-                        CONF_DURIN_CODE: self._durin_code,
-                        CONF_NAME: self._name,
-                        CONF_INSTALLATION_ID: installation_id,
-                        CONF_MQTT_BROKER: self._mqtt_config[CONF_MQTT_BROKER],
-                        CONF_MQTT_PORT: self._mqtt_config[CONF_MQTT_PORT],
-                        CONF_MQTT_USERNAME: self._mqtt_config[CONF_MQTT_USERNAME],
-                        CONF_MQTT_PASSWORD: self._mqtt_config[CONF_MQTT_PASSWORD],
-                        CONF_USE_TLS: self._mqtt_config.get(CONF_USE_TLS, True),
-                    },
-                )
+                return await self.async_step_devices()
 
         return self.async_show_form(
             step_id="user",
             data_schema=_get_user_schema(),
             errors=errors,
         )
+
+    async def async_step_devices(
+        self, user_input: Optional[Dict[str, Any]] = None
+    ) -> FlowResult:
+        """Step 2: Select devices to synchronize with Durin."""
+        errors: Dict[str, str] = {}
+
+        if user_input is not None:
+            self._sync_all = user_input.get(CONF_SYNC_ALL_ENTITIES, False)
+            
+            if self._sync_all:
+                # Get all supported entities
+                self._selected_entities = await self._get_all_supported_entities()
+            else:
+                self._selected_entities = user_input.get(CONF_SELECTED_ENTITIES, [])
+            
+            # Proceed to spaces step
+            return await self.async_step_spaces()
+
+        # Get available entities for selection
+        entity_list = await self._get_all_supported_entities()
+        
+        return self.async_show_form(
+            step_id="devices",
+            data_schema=vol.Schema({
+                vol.Required(CONF_SYNC_ALL_ENTITIES, default=True): selector.BooleanSelector(),
+                vol.Optional(CONF_SELECTED_ENTITIES): selector.EntitySelector(
+                    selector.EntitySelectorConfig(
+                        domain=SUPPORTED_DOMAINS,
+                        multiple=True,
+                    )
+                ),
+            }),
+            errors=errors,
+            description_placeholders={
+                "entity_count": str(len(entity_list)),
+            },
+        )
+
+    async def async_step_spaces(
+        self, user_input: Optional[Dict[str, Any]] = None
+    ) -> FlowResult:
+        """Step 3: Ask about importing Durin spaces."""
+        errors: Dict[str, str] = {}
+
+        if user_input is not None:
+            self._import_spaces = user_input.get(CONF_IMPORT_SPACES, False)
+            # Proceed to completion
+            return await self.async_step_complete()
+
+        return self.async_show_form(
+            step_id="spaces",
+            data_schema=vol.Schema({
+                vol.Required(CONF_IMPORT_SPACES, default=True): selector.BooleanSelector(),
+            }),
+            errors=errors,
+        )
+
+    async def async_step_complete(
+        self, user_input: Optional[Dict[str, Any]] = None
+    ) -> FlowResult:
+        """Step 4: Complete the setup."""
+        # Create the config entry with all collected data
+        return self.async_create_entry(
+            title=self._name,
+            data={
+                CONF_DURIN_CODE: self._durin_code,
+                CONF_NAME: self._name,
+                CONF_INSTALLATION_ID: self._installation_id,
+                CONF_MQTT_BROKER: self._mqtt_config[CONF_MQTT_BROKER],
+                CONF_MQTT_PORT: self._mqtt_config[CONF_MQTT_PORT],
+                CONF_MQTT_USERNAME: self._mqtt_config[CONF_MQTT_USERNAME],
+                CONF_MQTT_PASSWORD: self._mqtt_config[CONF_MQTT_PASSWORD],
+                CONF_USE_TLS: self._mqtt_config.get(CONF_USE_TLS, True),
+                CONF_SYNC_ALL_ENTITIES: self._sync_all,
+                CONF_SELECTED_ENTITIES: self._selected_entities,
+                CONF_IMPORT_SPACES: self._import_spaces,
+            },
+        )
+
+    async def _get_all_supported_entities(self) -> List[str]:
+        """Get all entities from supported domains."""
+        entity_reg = er.async_get(self.hass)
+        entities = []
+        
+        for entity in entity_reg.entities.values():
+            domain = entity.entity_id.split(".")[0]
+            if domain in SUPPORTED_DOMAINS and not entity.disabled:
+                entities.append(entity.entity_id)
+        
+        return sorted(entities)
 
     async def async_step_reauth(self, entry_data: Dict[str, Any]) -> FlowResult:
         """Handle reauthorization."""
