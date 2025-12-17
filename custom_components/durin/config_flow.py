@@ -173,22 +173,37 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_complete(
         self, user_input: Optional[Dict[str, Any]] = None
     ) -> FlowResult:
-        """Step 4: Complete the setup."""
-        # Create the config entry with all collected data
-        return self.async_create_entry(
-            title=self._name,
-            data={
-                CONF_DURIN_CODE: self._durin_code,
-                CONF_NAME: self._name,
-                CONF_INSTALLATION_ID: self._installation_id,
-                CONF_MQTT_BROKER: self._mqtt_config[CONF_MQTT_BROKER],
-                CONF_MQTT_PORT: self._mqtt_config[CONF_MQTT_PORT],
-                CONF_MQTT_USERNAME: self._mqtt_config[CONF_MQTT_USERNAME],
-                CONF_MQTT_PASSWORD: self._mqtt_config[CONF_MQTT_PASSWORD],
-                CONF_USE_TLS: self._mqtt_config.get(CONF_USE_TLS, True),
-                CONF_SYNC_ALL_ENTITIES: self._sync_all,
-                CONF_SELECTED_ENTITIES: self._selected_entities,
-                CONF_IMPORT_SPACES: self._import_spaces,
+        """Step 4: Show summary and complete the setup."""
+        if user_input is not None:
+            # Create the config entry with all collected data
+            return self.async_create_entry(
+                title=self._name,
+                data={
+                    CONF_DURIN_CODE: self._durin_code,
+                    CONF_NAME: self._name,
+                    CONF_INSTALLATION_ID: self._installation_id,
+                    CONF_MQTT_BROKER: self._mqtt_config[CONF_MQTT_BROKER],
+                    CONF_MQTT_PORT: self._mqtt_config[CONF_MQTT_PORT],
+                    CONF_MQTT_USERNAME: self._mqtt_config[CONF_MQTT_USERNAME],
+                    CONF_MQTT_PASSWORD: self._mqtt_config[CONF_MQTT_PASSWORD],
+                    CONF_USE_TLS: self._mqtt_config.get(CONF_USE_TLS, True),
+                    CONF_SYNC_ALL_ENTITIES: self._sync_all,
+                    CONF_SELECTED_ENTITIES: self._selected_entities,
+                    CONF_IMPORT_SPACES: self._import_spaces,
+                },
+            )
+
+        # Show summary before final submission
+        device_count = "All" if self._sync_all else str(len(self._selected_entities))
+        import_spaces_text = "Yes" if self._import_spaces else "No"
+        
+        return self.async_show_form(
+            step_id="complete",
+            data_schema=vol.Schema({}),
+            description_placeholders={
+                "name": self._name,
+                "device_count": device_count,
+                "import_spaces": import_spaces_text,
             },
         )
 

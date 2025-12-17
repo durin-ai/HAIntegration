@@ -2,6 +2,7 @@
   "config": {
     "step": {
       "user": {
+        "title": "Connect to Durin",
         "description": "Enter your 6-digit Durin code to connect your Home Assistant to the Durin ecosystem.\n\n**Get your code from the Durin Mobile App.**",
         "data": {
           "name": "Name",
@@ -13,6 +14,7 @@
         }
       },
       "devices": {
+        "title": "Select Devices",
         "description": "Select which devices to synchronize with Durin.\n\nFound **{entity_count}** supported entities in your Home Assistant.",
         "data": {
           "sync_all_entities": "Sync all devices",
@@ -24,6 +26,7 @@
         }
       },
       "spaces": {
+        "title": "Import Spaces",
         "description": "Durin organizes devices into Spaces (rooms/areas).\n\nWould you like to import your Durin Spaces into Home Assistant?",
         "data": {
           "import_spaces": "Import Spaces from Durin"
@@ -31,6 +34,11 @@
         "data_description": {
           "import_spaces": "When enabled, Spaces from Durin will be created as Areas in Home Assistant and kept in sync."
         }
+      },
+      "complete": {
+        "title": "Setup Complete",
+        "description": "Your Durin integration is ready to be configured.\n\n**Summary:**\n- Integration name: {name}\n- Devices to sync: {device_count}\n- Import spaces: {import_spaces}\n\nClick **Submit** to complete the setup.",
+        "submit": "Submit"
       },
       "reauth_confirm": {
         "description": "Your connection needs to be reauthorized. Please enter a new 6-digit Durin code.",
