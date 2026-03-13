@@ -22,10 +22,6 @@ Follow these steps in order:
 
 5. **Push** — push the commit to `main`.
 
-6. **Create GitHub release** — extract the changelog section for this version and pass it as the release notes:
-   ```sh
-   gh release create v$ARGUMENTS --title "v$ARGUMENTS" --notes-file <(awk '/^## \[$ARGUMENTS\]/,/^---/' CHANGELOG.md | head -n -2)
-   ```
-   This tags the commit and publishes a release. HACS checks GitHub releases to detect updates, so this is what triggers the "update available" badge in Home Assistant.
+6. **Done** — the GitHub Actions workflow (`.github/workflows/auto-release.yml`) will automatically detect the version change in `manifest.json`, extract the changelog notes for this version, and create the GitHub release. This triggers the "update available" badge in HACS for all users.
 
-7. **Confirm** — report the release URL and remind the user that Home Assistant instances with the integration installed will see the update notification after their next HACS refresh (usually within 24 hours, or immediately via HACS → Check for updates).
+7. **Confirm** — let the user know the push is done and they can monitor the release at https://github.com/durin-ai/HAIntegration/actions to watch the workflow complete.

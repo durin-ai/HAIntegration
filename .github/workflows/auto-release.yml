@@ -1,0 +1,62 @@
+name: Auto Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'custom_components/durin/manifest.json'
+
+jobs:
+  release:
+    name: Create release if version changed
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Read version from manifest
+        id: version
+        run: |
+          VERSION=$(jq -r '.version' custom_components/durin/manifest.json)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if release already exists
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract changelog notes for this version
+        if: steps.check.outputs.exists == 'false'
+        id: notes
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          NOTES=$(awk "/^## \[$VERSION\]/,/^---/" CHANGELOG.md | sed '1d;$d' | sed '/^[[:space:]]*$/d' | head -50)
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub release
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          NOTES="${{ steps.notes.outputs.notes }}"
+          if [ -z "$NOTES" ]; then
+            gh release create "$TAG" --title "$TAG" --generate-notes
+          else
+            gh release create "$TAG" --title "$TAG" --notes "$NOTES"
+          fi
