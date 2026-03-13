@@ -8,21 +8,26 @@ Connect your Home Assistant to the Durin Ecosystem for seamless smart home contr
 
 ### HACS (Recommended)
 
+HACS will automatically download and place the integration in the correct folder.
+
 1. Open HACS in Home Assistant
-2. Click on "Integrations"
-3. Click the three dots menu → "Custom repositories"
-4. Add `https://github.com/durin-ai/HAIntegration` as an Integration
-5. Search for "Durin Ecosystem" and install it
+2. Click on **Integrations**
+3. Click the three dots menu → **Custom repositories**
+4. Add `https://github.com/durin-ai/HAIntegration` as an **Integration**
+5. Click **Add**, then search for "Durin Ecosystem" and install it
 6. Restart Home Assistant
 
 ### Manual Installation
 
+> The `config/` directory is your Home Assistant configuration folder — the same one that contains `configuration.yaml`. On most installations this is `/homeassistant/` or `/config/`.
+
 1. Download the latest release from the [Releases page](https://github.com/durin-ai/HAIntegration/releases)
 2. Unzip the archive
-3. Copy the `custom_components/durin` folder into your Home Assistant configuration directory so the path becomes:
+3. Copy the `custom_components/durin` folder into the `custom_components/` folder inside your HA config directory so the resulting path is:
    ```
    config/custom_components/durin/
    ```
+   If the `custom_components/` folder doesn't exist yet, create it.
 4. Restart Home Assistant
 
 ## Configuration
