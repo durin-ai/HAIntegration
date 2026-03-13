@@ -7,6 +7,9 @@ on:
     paths:
       - 'custom_components/durin/manifest.json'
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   release:
     name: Create release if version changed
@@ -23,7 +26,7 @@ jobs:
       - name: Read version from manifest
         id: version
         run: |
-          VERSION=$(jq -r '.version' custom_components/durin/manifest.json)
+          VERSION=$(python3 -c "import json; print(json.load(open('custom_components/durin/manifest.json'))['version'])")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Check if release already exists
@@ -43,10 +46,11 @@ jobs:
         id: notes
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          NOTES=$(awk "/^## \[$VERSION\]/,/^---/" CHANGELOG.md | sed '1d;$d' | sed '/^[[:space:]]*$/d' | head -50)
-          echo "notes<<EOF" >> $GITHUB_OUTPUT
-          echo "$NOTES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          awk "/^## \\[$VERSION\\]/,/^---/" CHANGELOG.md | sed '1d;$d' | sed '/^[[:space:]]*$/d' | head -50 > /tmp/release_notes.md
+          echo "empty=false" >> $GITHUB_OUTPUT
+          if [ ! -s /tmp/release_notes.md ]; then
+            echo "empty=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create GitHub release
         if: steps.check.outputs.exists == 'false'
@@ -54,9 +58,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="v${{ steps.version.outputs.version }}"
-          NOTES="${{ steps.notes.outputs.notes }}"
-          if [ -z "$NOTES" ]; then
+          if [ "${{ steps.notes.outputs.empty }}" = "true" ]; then
             gh release create "$TAG" --title "$TAG" --generate-notes
           else
-            gh release create "$TAG" --title "$TAG" --notes "$NOTES"
+            gh release create "$TAG" --title "$TAG" --notes-file /tmp/release_notes.md
           fi
