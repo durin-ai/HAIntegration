@@ -2,6 +2,13 @@
 
 All notable changes to the Durin Home Assistant integration are documented here.
 
+## [0.4.0] - 2026-03-13
+
+### Changed
+- Minimum required Home Assistant version set to `2026.3.0` (the version actively tested and confirmed working)
+
+---
+
 ## [0.3.0] - 2026-03-13
 
 ### Added
