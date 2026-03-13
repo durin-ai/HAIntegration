@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from homeassistant.helpers.event import async_call_later
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
@@ -211,8 +212,17 @@ class DurinIoT:
             pass
     
     async def on_ha_event_safe(self, entity_id, old_state, new_state):
-        diff_keys = [k for k in (old_state.attributes.keys() & new_state.attributes.keys()) if old_state.attributes[k] != new_state.attributes[k]]
-        diff_dict = {k: (old_state.attributes[k], new_state.attributes[k]) for k in diff_keys}
+        
+        async def _on_coalesce_timer(_now: float) -> None:
+            await self.on_burst_coalesce(entity_id)
+
+        if old_state is None:
+            diff_keys = list(new_state.attributes.keys())
+            diff_dict = {k: (None, new_state.attributes[k]) for k in diff_keys}
+        else:   
+            diff_keys = [k for k in (old_state.attributes.keys() & new_state.attributes.keys()) if old_state.attributes[k] != new_state.attributes[k]]
+            diff_dict = {k: (old_state.attributes[k], new_state.attributes[k]) for k in diff_keys}
+
         _LOGGER.warning("State Change on: %s => %s to %s [%s]", 
                         entity_id, 
                         old_state.state if old_state is not None else "unknown", 
@@ -223,14 +233,64 @@ class DurinIoT:
         mapped_entities = set(self.entry.options.get("mapped_entities", []))
 
         if entity_id in mapped_entities:
-            await self.SendCloudCommand("home-assistant-update", {"state_change": {"entity_id": entity_id, "old_state": old_state.state if old_state is not None else "unknown", "new_state": new_state.state if new_state is not None else "unknown", "changed_attributes": diff_dict}})
+            need_update = False
 
+            # Before Sending the event, we need to check what the last reported state was
+            if entity_id not in self.entry.runtime_data["event_tracker"]:
+                self.entry.runtime_data["event_tracker"][entity_id] = {"last_state": {"state": new_state.state, "attributes": dict(new_state.attributes)}, "coalesce_timer": None}
+                need_update = True
 
-        #if not entity_id.startswith('sun.'):
-        #    results = await self.SendCloudCommand("home-assistant-update", {"state_change": {"entity_id": entity_id, "old_state": old_state.state if old_state is not None else "unknown", "new_state": new_state.state if new_state is not None else "unknown", "changed_attributes": diff_dict}})
-        #    _LOGGER.warning(results)
-        #else:
-        #     _LOGGER.warning(f"Skipping updating cloud for: {entity_id}")
+            if need_update or self.entry.runtime_data["event_tracker"][entity_id]["last_state"]['state'] != new_state.state or any(
+            self.entry.runtime_data["event_tracker"][entity_id]["last_state"]['attributes'][i] != new_state.attributes[i]
+            for i in  self.entry.runtime_data["event_tracker"][entity_id]["last_state"]['attributes'].keys() & new_state.attributes.keys()):
+
+                if entity_id.startswith("sensor."):
+                    # For sensors (non_binary), we will use a Burst Coalescer with max interval
+                    if self.entry.runtime_data["event_tracker"][entity_id]["coalesce_timer"] is None:
+                
+                        # Update the tracker for next time
+                        self.entry.runtime_data["event_tracker"][entity_id]["last_state"] = {"state": new_state.state, "attributes": dict(new_state.attributes)}
+                        self.entry.runtime_data["event_tracker"][entity_id]["coalesce_timer"] = async_call_later(
+                            self.hass,
+                            60.0,
+                            _on_coalesce_timer)
+                        _LOGGER.warning("Sending event: %s [%s] %s", entity_id, new_state.state, diff_dict)
+                        await self.SendCloudCommand("home-assistant-update", {"state_change": {"entity_id": entity_id, "old_state": old_state.state if old_state is not None else "unknown", "new_state": new_state.state if new_state is not None else "unknown", "changed_attributes": diff_dict}})
+                    else:
+                        # Timer exists already, so just drop the event, because we'll coalesce the event at the end of the interval
+                        _LOGGER.warning("dropping event, will coalesce later: %s [%s] %s", entity_id, new_state.state, diff_dict)
+                        pass
+                else:
+                    # Update the tracker for next time
+                    _LOGGER.warning("dropping event, will coalesce later: %s [%s] %s", entity_id, new_state.state, diff_dict)
+                    self.entry.runtime_data["event_tracker"][entity_id]["last_state"] = {"state": new_state.state, "attributes": dict(new_state.attributes)}
+                    await self.SendCloudCommand("home-assistant-update", {"state_change": {"entity_id": entity_id, "old_state": old_state.state if old_state is not None else "unknown", "new_state": new_state.state if new_state is not None else "unknown", "changed_attributes": diff_dict}})
+
+    async def on_burst_coalesce(self, entity_id):
+        try:
+
+            self.entry.runtime_data["event_tracker"][entity_id]["coalesce_timer"] = None
+
+            old_state = self.entry.runtime_data["event_tracker"][entity_id]["last_state"]
+            new_state = self.hass.states.get(entity_id)
+
+            diff_keys = [k for k in (old_state["attributes"].keys() & new_state.attributes.keys()) if old_state["attributes"][k] != new_state.attributes[k]]
+            diff_dict = {k: (old_state["attributes"][k], new_state.attributes[k]) for k in diff_keys}
+
+            if old_state['state'] != new_state.state or any(
+                old_state['attributes'][i] != new_state.attributes[i]
+                for i in  old_state['attributes'].keys() & new_state.attributes.keys()):
+
+                _LOGGER.warning("Sending Coalesced event: %s [%s] %s", entity_id, new_state.state, diff_dict)
+
+                # Only Send the event if the current value is different from the last value we sent
+                self.entry.runtime_data["event_tracker"][entity_id]["last_state"] = {"state": new_state.state, "attributes": dict(new_state.attributes)}
+                await self.SendCloudCommand("home-assistant-update", {"state_change": {"entity_id": entity_id, "old_state": old_state['state'] if old_state is not None else "unknown", "new_state": new_state.state if new_state is not None else "unknown", "changed_attributes": diff_dict}})
+            else:
+                _LOGGER.warning("Dropping Coalesced event: %s [%s/%s] %s", entity_id, old_state['state'], new_state.state, diff_dict)
+                pass
+        except Exception as err:
+            _LOGGER.exception("Error on %s: %s", entity_id, err)
 
 
     def on_shadow_get_rejected(self, error):
@@ -316,7 +376,7 @@ class DurinIoT:
         )
         self.mqtt_connection.connect()
     
-    async def device_representation(self, dev, device_table, top_level_only):
+    async def device_representation(self, dev, device_table, top_level_only, bridged_device=False):
         entity_registry = er.async_get(self.hass)
         area_registry = ar.async_get(self.hass)
 
@@ -331,7 +391,7 @@ class DurinIoT:
             if (state := self.hass.states.get(ent.entity_id)) is not None
             and state.attributes.get("friendly_name", None) is not None 
             and state.attributes.get("device_class", None) not in ("identify", "firmware")
-            and dev.via_device_id is None
+            and (dev.via_device_id is None or bridged_device is True)
         ]
 
         return {
@@ -342,7 +402,7 @@ class DurinIoT:
             ),
             "id": dev.id,
             "parent_id": dev.via_device_id,
-            "name": min(names, key=len, default=dev.name or dev.name_by_user) if (dev.name or dev.name_by_user)==dev.model else (dev.name or dev.name_by_user),
+            "name": min(names, key=len, default=dev.name or dev.name_by_user) if ((dev.name or dev.name_by_user)==dev.model or bridged_device) else (dev.name or dev.name_by_user),
             "manufacturer": dev.manufacturer,
             "model": dev.model,
             "identifiers": list(dev.identifiers),
@@ -423,6 +483,9 @@ class DurinIoT:
             case "list_entities":
                 self.PublishTopic(topic=responseTopic, payload={"status": "COMPLETE", "result": [s.entity_id for s in self.hass.states.async_all(body.get("domain", None))]})
 
+            case "get_test_string":
+                self.PublishTopic(topic=responseTopic, payload={"status": "COMPLETE", "result": "0.03"})
+
             case "list_domains":
                 self.PublishTopic(topic=responseTopic, payload={"status": "COMPLETE", "result": list({state.domain for state in self.hass.states.async_all()})})
 
@@ -496,6 +559,46 @@ class DurinIoT:
                     }
                 )
 
+            case "get_integration_devices_ids":
+                entry_id = body.get('entry_id', None)
+                device_registry = dr.async_get(self.hass)
+
+                result = [
+                    dev.id
+                    for dev in device_registry.devices.values()
+                    if entry_id in dev.config_entries
+                ]
+                self.PublishTopic(topic=responseTopic, payload={"status": "COMPLETE", "result": result})
+
+
+            case "get_integration_device":
+                device_id = body.get('device_id', None)
+                device_registry = dr.async_get(self.hass)
+
+                try:
+                    device = device_registry.async_get(device_id)
+                    device_json = {
+                        "id": device.id,
+                        "config_entries": list(device.config_entries),
+                        "connections": list(device.connections),
+                        "identifiers": list(device.identifiers),
+                        "manufacturer": device.manufacturer,
+                        "model": device.model,
+                        "name": device.name,
+                        "name_by_user": device.name_by_user,
+                        "hw_version": device.hw_version,
+                        "sw_version": device.sw_version,
+                        "via_device_id": device.via_device_id,
+                        "area_id": device.area_id,
+                        "configuration_url": device.configuration_url,
+                        "disabled_by": device.disabled_by,
+                        "entry_type": device.entry_type,
+                    }
+                    self.PublishTopic(topic=responseTopic, payload={"status": "COMPLETE", "result": device_json})
+                except Exception as err:
+                    _LOGGER.exception("Error on %s: %s", device_id, err)
+
+
             case "get_integration_devices":
                 entry_id = body.get('entry_id', None)
                 device_id = body.get('device_id', None)
@@ -516,8 +619,22 @@ class DurinIoT:
                     and (device_id is None or device_id == dev.id)
                 ]
 
+                bridge_device = next(
+                    (dev.id for i, (dev_id, dev) in enumerate(device_table.items())
+                    if dev.via_device_id == dev.id),
+                    None,
+                )
+
+                if bridge_device is not None:
+                    top_level_devices = [
+                        dev
+                        for i, (dev_id, dev) in enumerate(device_table.items())
+                        if dev.via_device_id == bridge_device
+                        and (device_id is None or device_id == dev.id)
+                    ]
+
                 result = [
-                    await self.device_representation(dv, device_table, device_id is None)
+                    await self.device_representation(dv, device_table, device_id is None, bridge_device is not None)
                     for dv in top_level_devices
                 ]
                 self.PublishTopic(topic=responseTopic, payload={"status": "COMPLETE", "result": result})
@@ -693,8 +810,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     durin_instance.Start()
 
     hass.data[DOMAIN][entry.entry_id] = { "durin": durin_instance }
+    entry.runtime_data = {"event_tracker": {}}
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN].pop(entry.entry_id, None)
+
+    for entity_id, data in entry.runtime_data["event_tracker"].items():
+        timer_object = data.get("coalesce_timer", None)
+        if timer_object is not None:
+            timer_object()
+
+
     return True
