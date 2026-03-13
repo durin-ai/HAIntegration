@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Durin",
+        "description": "Enter your 6-digit Durin code from the Durin Mobile App to link this Home Assistant instance.",
+        "data": {
+          "residence_code": "Durin Code"
+        },
+        "data_description": {
+          "residence_code": "Obtain this 6-digit code from the Durin Mobile App in the Residence you want to link."
+        }
+      }
+    },
+    "error": {
+      "invalid_code": "Invalid Durin code. The code must be exactly 6 digits.",
+      "code_expired": "This Durin code has expired. Please generate a new code in the Durin app.",
+      "connection_failed": "Unable to connect to the Durin backend. Please check your internet connection.",
+      "unknown": "An unexpected error occurred. Please try again later."
+    },
+    "abort": {
+      "already_configured": "This Durin installation is already configured.",
+      "reauth_successful": "Re-authentication was successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Durin Options",
+        "description": "Configuration is managed through the Durin platform. Use a new code to reconfigure."
+      }
+    }
+  }
+}

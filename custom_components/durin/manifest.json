@@ -2,8 +2,8 @@
   "domain": "ha_durin_integration",
   "name": "Durin Cloud Home Assistant Integration",
   "version": "0.1.0",
-  "documentation": "https://example.com/your-integration-docs",
-  "issue_tracker": "https://example.com/your-issue-tracker",
+  "documentation": "https://github.com/durin-ai/HAIntegration",
+  "issue_tracker": "https://github.com/durin-ai/HAIntegration/issues",
   "dependencies": [],
   "codeowners": ["@krayon007"],
   "requirements": 

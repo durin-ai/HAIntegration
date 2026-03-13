@@ -1,6 +1,5 @@
 {
   "name": "Durin Ecosystem",
-  "content_in_root": true,
   "render_readme": false,
   "homeassistant": "2026.3.0"
 }
