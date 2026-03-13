@@ -17,9 +17,13 @@ Connect your Home Assistant to the Durin Ecosystem for seamless smart home contr
 
 ### Manual Installation
 
-1. Download the `custom_components/durin` folder from this repository
-2. Copy it to your Home Assistant `config/custom_components/` directory
-3. Restart Home Assistant
+1. Download the latest release from the [Releases page](https://github.com/durin-ai/HAIntegration/releases)
+2. Unzip the archive
+3. Copy the `custom_components/durin` folder into your Home Assistant configuration directory so the path becomes:
+   ```
+   config/custom_components/durin/
+   ```
+4. Restart Home Assistant
 
 ## Configuration
 
