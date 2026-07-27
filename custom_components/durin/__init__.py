@@ -546,7 +546,16 @@ class DurinIoT:
             ),
             "id": dev.id,
             "parent_id": dev.via_device_id,
-            "name": resolve_entity_derived_name(names, dev.name or dev.name_by_user) if ((dev.name or dev.name_by_user) in (None, dev.model) or bridged_device) else (dev.name or dev.name_by_user),
+            # name_by_user is HA's own signal for "the user explicitly renamed this" -
+            # it must always win, regardless of bridged_device. bridged_device only
+            # matters for devices with no explicit name at all (typical for Zigbee
+            # sub-devices behind a coordinator), where we fall back to deriving a
+            # name from entities instead of showing the raw model string.
+            "name": (
+                dev.name_by_user if dev.name_by_user
+                else resolve_entity_derived_name(names, dev.name) if (dev.name in (None, dev.model) or bridged_device)
+                else dev.name
+            ),
             "manufacturer": dev.manufacturer,
             "model": dev.model,
             "identifiers": list(dev.identifiers),
