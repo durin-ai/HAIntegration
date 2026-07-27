@@ -219,6 +219,15 @@ class DurinIoT:
         # all, so relying on EVENT_STATE_CHANGED alone misses those entirely.
         if event.data.get("action") != "update":
             return
+        # "update" fires for lots of reasons unrelated to a rename (area
+        # reassignment, connection/version refresh on restart, etc). When HA
+        # tells us which fields changed, only react if a name field is among
+        # them - otherwise a restart's registry reconciliation floods every
+        # device through the resync path. If "changes" isn't present at all
+        # (older HA), fall back to reacting on every update.
+        changes = event.data.get("changes")
+        if changes is not None and not (set(changes) & {"name", "name_by_user"}):
+            return
         device_id = event.data.get("device_id")
         if device_id is None:
             return
