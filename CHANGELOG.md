@@ -2,6 +2,13 @@
 
 All notable changes to the Durin Home Assistant integration are documented here.
 
+## [0.6.5] - 2026-07-27
+
+### Fixed
+- Filtering device registry events by changed-field name (0.6.4) most likely suppressed real renames on some devices with no log trace at all. Replaced with a per-device cache of the last name actually synced, so the resync always attempts on any registry update but only calls the cloud when the computed name actually differs
+
+---
+
 ## [0.6.4] - 2026-07-27
 
 ### Fixed
