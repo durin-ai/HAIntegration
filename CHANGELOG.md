@@ -2,6 +2,16 @@
 
 All notable changes to the Durin Home Assistant integration are documented here.
 
+## [0.6.0] - 2026-07-27
+
+### Added
+- Device names are now resynced automatically when renamed in Home Assistant, instead of only being set once at initial import
+
+### Fixed
+- README updated for the current HACS UI (no more separate "Integrations" tab) and to reflect the real `XXXX-XXXX` access code format instead of the old 6-digit design
+
+---
+
 ## [0.5.0] - 2026-07-27
 
 ### Fixed
