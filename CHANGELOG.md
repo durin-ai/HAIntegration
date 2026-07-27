@@ -2,6 +2,13 @@
 
 All notable changes to the Durin Home Assistant integration are documented here.
 
+## [0.6.8] - 2026-07-27
+
+### Fixed
+- An explicit device rename (`name_by_user`) was being ignored in favor of a guessed entity-derived name for any device on a network with a Zigbee coordinator/bridge. The user-set name now always takes priority
+
+---
+
 ## [0.6.7] - 2026-07-27
 
 ### Fixed
