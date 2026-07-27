@@ -2,6 +2,13 @@
 
 All notable changes to the Durin Home Assistant integration are documented here.
 
+## [0.6.4] - 2026-07-27
+
+### Fixed
+- Device registry update events were treated as renames regardless of which field changed, so an HA restart's registry reconciliation flooded the resync path for unrelated devices. Now only reacts when the changed fields actually include the device name
+
+---
+
 ## [0.6.3] - 2026-07-27
 
 ### Fixed
