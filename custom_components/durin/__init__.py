@@ -65,6 +65,11 @@ class DurinIoT:
         self.hass = hass
         self.entry = entry
         self.LOOP: asyncio.AbstractEventLoop = hass.loop
+        # Last name we actually pushed to the cloud per device, so repeated/spurious
+        # registry "update" events for an unchanged name are cheap no-ops instead of
+        # spamming SendCloudCommand. Resets on restart, which just means one harmless
+        # extra sync per device the first time it's touched after HA comes back up.
+        self._last_synced_device_names = {}
 
     def PublishTopic(self, topic, payload={}):
         self.mqtt_connection.publish(
@@ -220,14 +225,12 @@ class DurinIoT:
         if event.data.get("action") != "update":
             return
         # "update" fires for lots of reasons unrelated to a rename (area
-        # reassignment, connection/version refresh on restart, etc). When HA
-        # tells us which fields changed, only react if a name field is among
-        # them - otherwise a restart's registry reconciliation floods every
-        # device through the resync path. If "changes" isn't present at all
-        # (older HA), fall back to reacting on every update.
-        changes = event.data.get("changes")
-        if changes is not None and not (set(changes) & {"name", "name_by_user"}):
-            return
+        # reassignment, connection/version refresh, etc), and not every HA
+        # version reports which fields changed in a way we can trust - so
+        # don't try to filter intent here. on_device_name_changed compares
+        # against the last name we actually synced and no-ops if unchanged,
+        # which is what actually keeps this cheap regardless of how often
+        # or why this event fires.
         device_id = event.data.get("device_id")
         if device_id is None:
             return
@@ -389,6 +392,10 @@ class DurinIoT:
             rep = await self.device_representation(top_dev, device_table, False, bridge_device is not None)
             found = find_in_tree(rep, dev.id)
             if found is not None:
+                if self._last_synced_device_names.get(dev.id) == found["name"]:
+                    _LOGGER.debug("Device name resync: %s already synced as %s, skipping", dev.id, found["name"])
+                    return
+                self._last_synced_device_names[dev.id] = found["name"]
                 _LOGGER.warning("Resyncing device name for %s => %s", dev.id, found["name"])
                 await self.SendCloudCommand(
                     "home-assistant-update",
