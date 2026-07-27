@@ -2,6 +2,13 @@
 
 All notable changes to the Durin Home Assistant integration are documented here.
 
+## [0.6.6] - 2026-07-27
+
+### Fixed
+- Devices whose via_device_id points at themselves (a self-referencing "bridge" marker some integrations use) caused device_representation() to recurse into itself forever, silently crashing the name resync with no log output at all. This is why some devices' renames never produced any trace in the logs
+
+---
+
 ## [0.6.5] - 2026-07-27
 
 ### Fixed
