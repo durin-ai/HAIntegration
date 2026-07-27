@@ -408,7 +408,7 @@ class DurinIoT:
             ),
             "id": dev.id,
             "parent_id": dev.via_device_id,
-            "name": min(names, key=len, default=dev.name or dev.name_by_user) if ((dev.name or dev.name_by_user)==dev.model or bridged_device) else (dev.name or dev.name_by_user),
+            "name": min(names, key=len, default=dev.name or dev.name_by_user) if ((dev.name or dev.name_by_user) in (None, dev.model) or bridged_device) else (dev.name or dev.name_by_user),
             "manufacturer": dev.manufacturer,
             "model": dev.model,
             "identifiers": list(dev.identifiers),
@@ -434,7 +434,7 @@ class DurinIoT:
                 if not top_level_only
             ],
             "devices": [
-                await self.device_representation(dv, device_table, top_level_only)
+                await self.device_representation(dv, device_table, top_level_only, bridged_device)
                 for i, (k, dv) in enumerate(device_table.items())
                 if dv.via_device_id == dev.id
                 and not top_level_only
