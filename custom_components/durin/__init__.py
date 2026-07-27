@@ -377,6 +377,12 @@ class DurinIoT:
             d
             for dev_id, d in device_table.items()
             if (d.via_device_id == bridge_device if bridge_device is not None else d.via_device_id is None)
+            # A device whose via_device_id is itself is a self-referencing bridge
+            # marker, not a real top-level device - device_representation()
+            # recurses into any child whose via_device_id == the device it's
+            # rendering, so including the bridge here means it recurses into
+            # itself forever (RecursionError).
+            and dev_id != bridge_device
         ]
 
         def find_in_tree(rep, target_id):
@@ -745,6 +751,7 @@ class DurinIoT:
                         dev
                         for i, (dev_id, dev) in enumerate(device_table.items())
                         if dev.via_device_id == bridge_device
+                        and dev_id != bridge_device
                         and (device_id is None or device_id == dev.id)
                     ]
 
