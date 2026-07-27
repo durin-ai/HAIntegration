@@ -51,6 +51,29 @@ def random_mac() -> str:
     # format as "AA:BB:CC:DD:EE:FF"
     return ":".join(f"{byte:02X}" for byte in b)
 
+def common_name_prefix(names):
+    """Shared leading words across a set of entity friendly names.
+
+    Entities on a device are typically named "{device name} {suffix}"
+    (e.g. "Attic Env Sensor 6 Battery", "Attic Env Sensor 6 Temperature"),
+    so the device name is the word-by-word prefix they all share, not
+    whichever entity name happens to be shortest.
+    """
+    if not names:
+        return None
+    word_lists = [n.split(" ") for n in names]
+    common = []
+    for words in zip(*word_lists):
+        if len(set(words)) != 1:
+            break
+        common.append(words[0])
+    return " ".join(common) if common else None
+
+def resolve_entity_derived_name(names, default):
+    if not names:
+        return default
+    return common_name_prefix(names) or min(names, key=len)
+
 class DurinIoT:
     keyPath: str = str(BASE_PATH / "data" / "claim-cert.key")
     certPath: str =  str(BASE_PATH / "data" / "claim-cert.pem")
@@ -523,7 +546,7 @@ class DurinIoT:
             ),
             "id": dev.id,
             "parent_id": dev.via_device_id,
-            "name": min(names, key=len, default=dev.name or dev.name_by_user) if ((dev.name or dev.name_by_user) in (None, dev.model) or bridged_device) else (dev.name or dev.name_by_user),
+            "name": resolve_entity_derived_name(names, dev.name or dev.name_by_user) if ((dev.name or dev.name_by_user) in (None, dev.model) or bridged_device) else (dev.name or dev.name_by_user),
             "manufacturer": dev.manufacturer,
             "model": dev.model,
             "identifiers": list(dev.identifiers),
