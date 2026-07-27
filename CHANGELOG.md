@@ -2,6 +2,17 @@
 
 All notable changes to the Durin Home Assistant integration are documented here.
 
+## [0.5.0] - 2026-07-27
+
+### Fixed
+- MQTT connection wasn't torn down on integration unload, causing a stale connection to fight a reloaded one over the same AWS IoT client ID (repeated `DUPLICATE_CLIENTID` disconnects that looked like device flapping)
+- `EVENT_STATE_CHANGED` listener leak on MQTT reconnect
+- Device name resolution for bridged/nested devices
+- Config flow strings still described an old 6-digit numeric code format; updated to reflect the real `XXXX-XXXX` alphanumeric access code
+- Icon rendering (dark background, rounded corners) for visibility in HACS and HA UI
+
+---
+
 ## [0.4.0] - 2026-03-13
 
 ### Changed
