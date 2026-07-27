@@ -232,6 +232,9 @@ class DurinIoT:
         # Check if this entity is mapped to durin
         mapped_entities = set(self.entry.options.get("mapped_entities", []))
 
+        if entity_id in mapped_entities and new_state is not None and "friendly_name" in diff_dict:
+            await self.on_device_name_changed(entity_id)
+
         if entity_id in mapped_entities:
             _LOGGER.debug("State Change on: %s => %s to %s [%s]", 
                         entity_id, 
@@ -298,6 +301,58 @@ class DurinIoT:
         except Exception as err:
             _LOGGER.exception("Error on %s: %s", entity_id, err)
 
+    async def on_device_name_changed(self, entity_id):
+        """Recompute the owning device's name and push it to the cloud if it changed.
+
+        Reuses device_representation() rather than re-deriving the name heuristic here,
+        so this stays consistent with whatever the import flow (get_integration_devices)
+        would compute for the same device.
+        """
+        entity_registry = er.async_get(self.hass)
+        ent_entry = entity_registry.async_get(entity_id)
+        if ent_entry is None or ent_entry.device_id is None:
+            return
+
+        device_registry = dr.async_get(self.hass)
+        dev = device_registry.async_get(ent_entry.device_id)
+        if dev is None:
+            return
+
+        device_table = {
+            d.id: d
+            for d in device_registry.devices.values()
+            if self.entry.entry_id in d.config_entries
+        }
+
+        bridge_device = next(
+            (d.id for dev_id, d in device_table.items() if d.via_device_id == d.id),
+            None,
+        )
+        top_level_devices = [
+            d
+            for dev_id, d in device_table.items()
+            if (d.via_device_id == bridge_device if bridge_device is not None else d.via_device_id is None)
+        ]
+
+        def find_in_tree(rep, target_id):
+            if rep["id"] == target_id:
+                return rep
+            for child in rep.get("devices", []):
+                found = find_in_tree(child, target_id)
+                if found is not None:
+                    return found
+            return None
+
+        for top_dev in top_level_devices:
+            rep = await self.device_representation(top_dev, device_table, False, bridge_device is not None)
+            found = find_in_tree(rep, dev.id)
+            if found is not None:
+                _LOGGER.warning("Resyncing device name for %s => %s", dev.id, found["name"])
+                await self.SendCloudCommand(
+                    "home-assistant-update",
+                    {"device_name_change": {"entry_id": self.entry.entry_id, "device_id": dev.id, "name": found["name"]}},
+                )
+                return
 
     def on_shadow_get_rejected(self, error):
         self.shadow_retry_count += 1
