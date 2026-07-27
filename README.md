@@ -11,11 +11,10 @@ Connect your Home Assistant to the Durin Ecosystem for seamless smart home contr
 HACS will automatically download and place the integration in the correct folder.
 
 1. Open HACS in Home Assistant
-2. Click on **Integrations**
-3. Click the three dots menu → **Custom repositories**
-4. Add `https://github.com/durin-ai/HAIntegration` as an **Integration**
-5. Click **Add**, then search for "Durin Ecosystem" and install it
-6. Restart Home Assistant
+2. Click the **⋮** menu in the top-right corner → **Custom repositories**
+3. Add `https://github.com/durin-ai/HAIntegration` as an **Integration**, then click **Add**
+4. Search for "Durin Ecosystem" in HACS and install it
+5. Restart Home Assistant
 
 ### Manual Installation
 
@@ -35,7 +34,7 @@ HACS will automatically download and place the integration in the correct folder
 1. Go to **Settings** → **Devices & Services**
 2. Click **+ Add Integration**
 3. Search for "Durin Ecosystem"
-4. Enter your 6-digit Durin code from the mobile app
+4. Enter your Durin code (format: `XXXX-XXXX`) from the mobile app
 
 ## Features
 
@@ -48,8 +47,8 @@ HACS will automatically download and place the integration in the correct folder
 
 1. Open the Durin mobile app
 2. Navigate to your Residence settings
-3. Generate a new 6-digit pairing code
-4. Enter the code in Home Assistant within 10 minutes
+3. Generate a new pairing code
+4. Enter the code in Home Assistant before it expires
 
 ## Support
 
