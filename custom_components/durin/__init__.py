@@ -828,6 +828,19 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if remove_event_sub is not None:
             remove_event_sub()
 
+        # Actually tear down the MQTT connection. Without this, the old
+        # DurinIoT instance's connection stays alive after unload/reload
+        # while a new one spins up with the same client_id (=thingName).
+        # AWS IoT only allows one live connection per client ID, so the
+        # two fight over it indefinitely (repeated DUPLICATE_CLIENTID
+        # disconnects), which looks like the device flipping online/offline.
+        mqtt_connection = getattr(durin_instance, "mqtt_connection", None) if durin_instance is not None else None
+        if mqtt_connection is not None:
+            try:
+                await asyncio.wrap_future(mqtt_connection.disconnect())
+            except Exception:
+                _LOGGER.exception("Error disconnecting Durin MQTT connection during unload")
+
     for entity_id, data in entry.runtime_data["event_tracker"].items():
         timer_object = data.get("coalesce_timer", None)
         if timer_object is not None:
