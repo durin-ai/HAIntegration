@@ -311,17 +311,28 @@ class DurinIoT:
         entity_registry = er.async_get(self.hass)
         ent_entry = entity_registry.async_get(entity_id)
         if ent_entry is None or ent_entry.device_id is None:
+            _LOGGER.warning("Device name resync: skipping %s, entity has no device_id", entity_id)
             return
 
         device_registry = dr.async_get(self.hass)
         dev = device_registry.async_get(ent_entry.device_id)
         if dev is None:
+            _LOGGER.warning("Device name resync: skipping %s, device %s not found", entity_id, ent_entry.device_id)
+            return
+
+        # The device belongs to whichever integration created it (ZHA, MQTT, etc.),
+        # not to Durin's own config entry - Durin only observes it. That source
+        # entry_id is also what get_integration_devices used as the subId prefix
+        # at import time, so we need the same value here to find the same device.
+        source_entry_id = next(iter(dev.config_entries), None)
+        if source_entry_id is None:
+            _LOGGER.warning("Device name resync: skipping %s, device %s has no config_entries", entity_id, dev.id)
             return
 
         device_table = {
             d.id: d
             for d in device_registry.devices.values()
-            if self.entry.entry_id in d.config_entries
+            if source_entry_id in d.config_entries
         }
 
         bridge_device = next(
@@ -350,9 +361,14 @@ class DurinIoT:
                 _LOGGER.warning("Resyncing device name for %s => %s", dev.id, found["name"])
                 await self.SendCloudCommand(
                     "home-assistant-update",
-                    {"device_name_change": {"entry_id": self.entry.entry_id, "device_id": dev.id, "name": found["name"]}},
+                    {"device_name_change": {"entry_id": source_entry_id, "device_id": dev.id, "name": found["name"]}},
                 )
                 return
+
+        _LOGGER.warning(
+            "Device name resync: no match for device %s among %d top-level device(s) in entry %s",
+            dev.id, len(top_level_devices), source_entry_id,
+        )
 
     def on_shadow_get_rejected(self, error):
         self.shadow_retry_count += 1
