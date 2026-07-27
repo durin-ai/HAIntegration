@@ -2,6 +2,13 @@
 
 All notable changes to the Durin Home Assistant integration are documented here.
 
+## [0.6.3] - 2026-07-27
+
+### Fixed
+- Device name resync only detected renames via entity `friendly_name` changes, which many integrations (e.g. Zigbee/LUMI sensors) never update on a device rename. Now listens to Home Assistant's device registry update event directly, so renames are detected regardless of integration pattern
+
+---
+
 ## [0.6.2] - 2026-07-27
 
 ### Fixed
