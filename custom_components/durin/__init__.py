@@ -199,7 +199,13 @@ class DurinIoT:
     async def on_shadow_get_accepted_safe(self, reported):
         # Full shadow document is here
         _LOGGER.warning("Shadow state: %s", reported)
-        self.remove_event_sub = self.hass.bus.async_listen(EVENT_STATE_CHANGED, self.on_ha_event)
+        # This callback fires on every MQTT reconnect (shadow re-fetch on reconnect).
+        # Re-subscribing each time without removing the previous listener leaks a
+        # duplicate EVENT_STATE_CHANGED listener per reconnect, so every real state
+        # change gets processed N times (N = number of reconnects since startup).
+        # Only subscribe once per instance lifetime.
+        if getattr(self, "remove_event_sub", None) is None:
+            self.remove_event_sub = self.hass.bus.async_listen(EVENT_STATE_CHANGED, self.on_ha_event)
 
     def on_ha_event(self, event):
         try:
@@ -223,16 +229,16 @@ class DurinIoT:
             diff_keys = [k for k in (old_state.attributes.keys() & new_state.attributes.keys()) if old_state.attributes[k] != new_state.attributes[k]]
             diff_dict = {k: (old_state.attributes[k], new_state.attributes[k]) for k in diff_keys}
 
-        _LOGGER.warning("State Change on: %s => %s to %s [%s]", 
-                        entity_id, 
-                        old_state.state if old_state is not None else "unknown", 
-                        new_state.state if new_state is not None else "unknown",
-                        diff_dict)
-        
         # Check if this entity is mapped to durin
         mapped_entities = set(self.entry.options.get("mapped_entities", []))
 
         if entity_id in mapped_entities:
+            _LOGGER.debug("State Change on: %s => %s to %s [%s]", 
+                        entity_id, 
+                        old_state.state if old_state is not None else "unknown", 
+                        new_state.state if new_state is not None else "unknown",
+                        diff_dict)
+
             need_update = False
 
             # Before Sending the event, we need to check what the last reported state was
@@ -814,7 +820,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    hass.data[DOMAIN].pop(entry.entry_id, None)
+    entry_data = hass.data[DOMAIN].pop(entry.entry_id, None)
+
+    if entry_data is not None:
+        durin_instance = entry_data.get("durin")
+        remove_event_sub = getattr(durin_instance, "remove_event_sub", None) if durin_instance is not None else None
+        if remove_event_sub is not None:
+            remove_event_sub()
 
     for entity_id, data in entry.runtime_data["event_tracker"].items():
         timer_object = data.get("coalesce_timer", None)
