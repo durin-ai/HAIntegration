@@ -2,6 +2,13 @@
 
 All notable changes to the Durin Home Assistant integration are documented here.
 
+## [0.6.7] - 2026-07-27
+
+### Fixed
+- Device name fallback picked whichever entity's full friendly name was shortest (e.g. "...Battery" beating "...Temperature" by one character) instead of the shared device-level prefix across all its entities. Now derives the name from the common leading words, e.g. "Attic Env Sensor 6" instead of "Attic Env Sensor 6 Battery"
+
+---
+
 ## [0.6.6] - 2026-07-27
 
 ### Fixed
