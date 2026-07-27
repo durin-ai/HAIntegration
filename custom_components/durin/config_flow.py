@@ -9,7 +9,12 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 
 from homeassistant.config_entries import ConfigEntry, OptionsFlow
-from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
+from homeassistant.helpers.selector import (
+    EntitySelector,
+    EntitySelectorConfig,
+    TextSelector,
+    TextSelectorConfig,
+)
 
 import logging
 _LOGGER = logging.getLogger(__name__)
@@ -54,21 +59,31 @@ class MyIntegrationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     
 class DurinOptionsFlow(OptionsFlow):
     def __init__(self, config_entry: ConfigEntry) -> None:
-        _LOGGER.warning("DurinOptionsFlow base classes: %s", DurinOptionsFlow.__mro__)
         self._config_entry = config_entry
 
     async def async_step_init(self, user_input=None) -> FlowResult:
         if user_input is not None:
-            # Nothing is user-editable; keep existing options
-            return self.async_create_entry(data=self._config_entry.options)
+            new_options = {
+                **self._config_entry.options,
+                "mapped_entities": sorted(user_input.get("mapped_entities", [])),
+            }
+            return self.async_create_entry(title="", data=new_options)
 
         fields: dict = {}
 
-        # One read-only field per programmatic option
+        # One read-only field per programmatic option that isn't user-editable
         for key in self._config_entry.options.keys():
+            if key == "mapped_entities":
+                continue
             fields[vol.Optional(key)] = TextSelector(
                 TextSelectorConfig(read_only=True)
             )
+
+        # mapped_entities gets a proper multi-select entity picker instead of a
+        # read-only comma-joined string, so it's both readable and editable here
+        fields[vol.Optional("mapped_entities")] = EntitySelector(
+            EntitySelectorConfig(multiple=True)
+        )
 
         options_schema = vol.Schema(fields)
 
