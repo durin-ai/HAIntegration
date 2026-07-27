@@ -2,6 +2,13 @@
 
 All notable changes to the Durin Home Assistant integration are documented here.
 
+## [0.6.1] - 2026-07-27
+
+### Changed
+- `mapped_entities` in the Durin Options screen is now an editable multi-select entity picker instead of a read-only, truncated comma-joined string
+
+---
+
 ## [0.6.0] - 2026-07-27
 
 ### Added
