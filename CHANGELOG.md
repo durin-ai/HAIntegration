@@ -2,6 +2,13 @@
 
 All notable changes to the Durin Home Assistant integration are documented here.
 
+## [0.6.2] - 2026-07-27
+
+### Fixed
+- Device name resync (added in 0.6.0) never actually reached the cloud, because it looked up devices under Durin's own config entry instead of the entry of the integration that actually owns the device (ZHA, MQTT, etc.)
+
+---
+
 ## [0.6.1] - 2026-07-27
 
 ### Changed
