@@ -206,6 +206,23 @@ class DurinIoT:
         # Only subscribe once per instance lifetime.
         if getattr(self, "remove_event_sub", None) is None:
             self.remove_event_sub = self.hass.bus.async_listen(EVENT_STATE_CHANGED, self.on_ha_event)
+        if getattr(self, "remove_device_registry_sub", None) is None:
+            self.remove_device_registry_sub = self.hass.bus.async_listen(
+                dr.EVENT_DEVICE_REGISTRY_UPDATED, self.on_device_registry_event
+            )
+
+    def on_device_registry_event(self, event):
+        # This is the actual HA-native signal for a device rename. Entity
+        # friendly_name only reflects a device rename for integrations using the
+        # has_entity_name pattern - many (e.g. this Zigbee/LUMI sensor) update
+        # only the device registry's name_by_user with no entity state event at
+        # all, so relying on EVENT_STATE_CHANGED alone misses those entirely.
+        if event.data.get("action") != "update":
+            return
+        device_id = event.data.get("device_id")
+        if device_id is None:
+            return
+        self.LOOP.call_soon_threadsafe(self.hass.async_create_task, self.on_device_name_changed(device_id))
 
     def on_ha_event(self, event):
         try:
@@ -233,7 +250,9 @@ class DurinIoT:
         mapped_entities = set(self.entry.options.get("mapped_entities", []))
 
         if entity_id in mapped_entities and new_state is not None and "friendly_name" in diff_dict:
-            await self.on_device_name_changed(entity_id)
+            ent_entry = er.async_get(self.hass).async_get(entity_id)
+            if ent_entry is not None and ent_entry.device_id is not None:
+                await self.on_device_name_changed(ent_entry.device_id)
 
         if entity_id in mapped_entities:
             _LOGGER.debug("State Change on: %s => %s to %s [%s]", 
@@ -301,23 +320,26 @@ class DurinIoT:
         except Exception as err:
             _LOGGER.exception("Error on %s: %s", entity_id, err)
 
-    async def on_device_name_changed(self, entity_id):
-        """Recompute the owning device's name and push it to the cloud if it changed.
+    async def on_device_name_changed(self, device_id):
+        """Recompute a device's name and push it to the cloud if it changed.
 
         Reuses device_representation() rather than re-deriving the name heuristic here,
         so this stays consistent with whatever the import flow (get_integration_devices)
         would compute for the same device.
         """
-        entity_registry = er.async_get(self.hass)
-        ent_entry = entity_registry.async_get(entity_id)
-        if ent_entry is None or ent_entry.device_id is None:
-            _LOGGER.warning("Device name resync: skipping %s, entity has no device_id", entity_id)
+        device_registry = dr.async_get(self.hass)
+        dev = device_registry.async_get(device_id)
+        if dev is None:
+            _LOGGER.warning("Device name resync: skipping %s, device not found", device_id)
             return
 
-        device_registry = dr.async_get(self.hass)
-        dev = device_registry.async_get(ent_entry.device_id)
-        if dev is None:
-            _LOGGER.warning("Device name resync: skipping %s, device %s not found", entity_id, ent_entry.device_id)
+        entity_registry = er.async_get(self.hass)
+        mapped_entities = set(self.entry.options.get("mapped_entities", []))
+        device_entities = {
+            ent.entity_id for ent in entity_registry.entities.values() if ent.device_id == device_id
+        }
+        if not (device_entities & mapped_entities):
+            _LOGGER.debug("Device name resync: skipping %s, not mapped to Durin", device_id)
             return
 
         # The device belongs to whichever integration created it (ZHA, MQTT, etc.),
@@ -326,7 +348,7 @@ class DurinIoT:
         # at import time, so we need the same value here to find the same device.
         source_entry_id = next(iter(dev.config_entries), None)
         if source_entry_id is None:
-            _LOGGER.warning("Device name resync: skipping %s, device %s has no config_entries", entity_id, dev.id)
+            _LOGGER.warning("Device name resync: skipping %s, device has no config_entries", dev.id)
             return
 
         device_table = {
