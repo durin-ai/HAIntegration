@@ -217,7 +217,8 @@ class DurinIoT:
             ca_filepath=self.caPath,
             client_id=self.clientId,
             clean_session=True,
-            keep_alive_secs=30,
+            keep_alive_secs=60,
+            ping_timeout_ms=10000,
             on_connection_success=self.on_connect_handler
         )
         self.mqtt_connection.connect()
@@ -486,7 +487,8 @@ class DurinIoT:
             ca_filepath=self.caPath,
             client_id=self.entry.data["thing_data"]['thingName'],
             clean_session=True,
-            keep_alive_secs=30,
+            keep_alive_secs=60,
+            ping_timeout_ms=10000,
             on_connection_success=self.on_device_connect_handler
         )
 
@@ -515,7 +517,8 @@ class DurinIoT:
             ca_filepath=self.caPath,
             client_id=payload['thingName'],
             clean_session=True,
-            keep_alive_secs=30,
+            keep_alive_secs=60,
+            ping_timeout_ms=10000,
             on_connection_success=self.on_device_connect_handler
         )
         self.mqtt_connection.connect()
