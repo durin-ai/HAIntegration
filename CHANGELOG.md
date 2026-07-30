@@ -2,6 +2,13 @@
 
 All notable changes to the Durin Home Assistant integration are documented here.
 
+## [0.6.9] - 2026-07-30
+
+### Fixed
+- MQTT connection was dropping and reconnecting every 30-90 minutes (disconnectReason CONNECTION_LOST/MQTT_KEEP_ALIVE_TIMEOUT), causing spurious "offline then immediately back online" status. The SDK's 3-second ping timeout combined with a 30-second keep-alive left no margin for normal network jitter. Widened keep-alive to 60s and set an explicit 10-second ping timeout
+
+---
+
 ## [0.6.8] - 2026-07-27
 
 ### Fixed
