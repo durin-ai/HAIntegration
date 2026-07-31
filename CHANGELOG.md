@@ -2,6 +2,13 @@
 
 All notable changes to the Durin Home Assistant integration are documented here.
 
+## [0.7.0-dev] - 2026-07-31
+
+### Added
+- **Untested, in-progress:** Durin Options screen now lets you pick devices instead of raw entities. Entities that need to sync are derived automatically from the device's non-diagnostic entities. Has not yet been verified against a live Home Assistant instance
+
+---
+
 ## [0.6.9] - 2026-07-30
 
 ### Fixed
