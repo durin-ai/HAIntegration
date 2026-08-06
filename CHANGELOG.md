@@ -2,6 +2,13 @@
 
 All notable changes to the Durin Home Assistant integration are documented here.
 
+## [0.8.0-dev] - 2026-08-01
+
+### Added
+- **Untested, in-progress:** Durin spaces now sync down into Home Assistant automatically as native Areas (with Floors for anything nested under a Level-type space), each with its own device holding entities for every zone tied to that space - motion/occupancy as binary sensors, Threshold zones as real `lock` entities with working lock/unlock, everything else as a generic sensor. Requires matching cloud-side support (`get_spaces_zones`/`zone_operation` IoT commands) deployed to the same environment. Not yet verified against a live Home Assistant instance
+
+---
+
 ## [0.7.0-dev] - 2026-07-31
 
 ### Added
