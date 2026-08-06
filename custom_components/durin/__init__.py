@@ -2,12 +2,17 @@ from __future__ import annotations
 
 from homeassistant.helpers.event import async_call_later
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.network import get_url
 from pathlib import Path
 import json
+
+from .coordinator import DurinSpaceZoneCoordinator
+
+PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.LOCK, Platform.SENSOR]
 
 import argparse
 from awsiot import mqtt_connection_builder
@@ -239,6 +244,12 @@ class DurinIoT:
             self.remove_device_registry_sub = self.hass.bus.async_listen(
                 dr.EVENT_DEVICE_REGISTRY_UPDATED, self.on_device_registry_event
             )
+        # Shadow-accepted fires on every (re)connect, which is exactly when it's
+        # worth pulling fresh space/zone data - no need to wait for the periodic
+        # coordinator interval after a fresh start/reconnect.
+        coordinator = getattr(self, "coordinator", None)
+        if coordinator is not None:
+            await coordinator.async_request_refresh()
 
     def on_device_registry_event(self, event):
         # This is the actual HA-native signal for a device rename. Entity
@@ -964,13 +975,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
 
     durin_instance = DurinIoT(entry.data.get("residence_code"), hass, entry)
+    coordinator = DurinSpaceZoneCoordinator(hass, entry, durin_instance)
+    durin_instance.coordinator = coordinator
+
     durin_instance.Start()
 
-    hass.data[DOMAIN][entry.entry_id] = { "durin": durin_instance }
+    hass.data[DOMAIN][entry.entry_id] = { "durin": durin_instance, "coordinator": coordinator }
     entry.runtime_data = {"event_tracker": {}}
+
+    # Soft first attempt only - MQTT likely isn't connected yet at this point, and
+    # on_shadow_get_accepted_safe/the periodic interval will populate real data once
+    # it is. async_refresh() (unlike async_config_entry_first_refresh()) doesn't
+    # raise ConfigEntryNotReady on failure, so this can't block/fail setup.
+    hass.async_create_task(coordinator.async_refresh())
+
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    if not await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        return False
+
     entry_data = hass.data[DOMAIN].pop(entry.entry_id, None)
 
     if entry_data is not None:
